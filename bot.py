@@ -215,7 +215,7 @@ async def show_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product = session.query(Product).filter_by(id=product_id).first()
         
         if not product:
-            await query.edit_message_text("Product not found")
+            await query.edit_message_text(get_text(lang, 'product_not_found'))
             return
         
         supplier_name = product.supplier.first_name or product.supplier.username or "Unknown"
@@ -253,7 +253,7 @@ async def contact_supplier(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         product = session.query(Product).filter_by(id=product_id).first()
         if not product:
-            await query.edit_message_text("Product not found")
+            await query.edit_message_text(get_text(lang, 'product_not_found'))
             return
         
         buyer = session.query(User).filter_by(telegram_id=buyer_id).first()
@@ -471,7 +471,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = update.effective_user.id
     if not is_admin(user_id):
-        await query.edit_message_text("Unauthorized")
+        lang = get_user_language(user_id)
+        await query.edit_message_text(get_text(lang, 'unauthorized'))
         return
     
     lang = get_user_language(user_id)

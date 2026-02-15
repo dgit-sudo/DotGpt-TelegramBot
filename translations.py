@@ -49,6 +49,8 @@ TRANSLATIONS = {
         'select_language': "Select your language:",
         'settings_menu': "⚙️ Settings",
         'change_language': "🌐 Change Language",
+        'product_not_found': "❌ Product not found",
+        'unauthorized': "❌ Unauthorized access",
     },
     'es': {
         'welcome': "¡Bienvenido a nuestro Bot de E-commerce! 🛍️\nElige tu idioma:",
@@ -95,6 +97,8 @@ TRANSLATIONS = {
         'select_language': "Selecciona tu idioma:",
         'settings_menu': "⚙️ Configuración",
         'change_language': "🌐 Cambiar Idioma",
+        'product_not_found': "❌ Producto no encontrado",
+        'unauthorized': "❌ Acceso no autorizado",
     },
     'fr': {
         'welcome': "Bienvenue dans notre Bot E-commerce! 🛍️\nChoisissez votre langue:",
@@ -141,6 +145,8 @@ TRANSLATIONS = {
         'select_language': "Sélectionnez votre langue:",
         'settings_menu': "⚙️ Paramètres",
         'change_language': "🌐 Changer de Langue",
+        'product_not_found': "❌ Produit introuvable",
+        'unauthorized': "❌ Accès non autorisé",
     },
     'de': {
         'welcome': "Willkommen bei unserem E-Commerce-Bot! 🛍️\nWählen Sie Ihre Sprache:",
@@ -187,6 +193,8 @@ TRANSLATIONS = {
         'select_language': "Wählen Sie Ihre Sprache:",
         'settings_menu': "⚙️ Einstellungen",
         'change_language': "🌐 Sprache ändern",
+        'product_not_found': "❌ Produkt nicht gefunden",
+        'unauthorized': "❌ Unbefugter Zugriff",
     },
     'it': {
         'welcome': "Benvenuto nel nostro Bot E-commerce! 🛍️\nScegli la tua lingua:",
@@ -233,6 +241,8 @@ TRANSLATIONS = {
         'select_language': "Seleziona la tua lingua:",
         'settings_menu': "⚙️ Impostazioni",
         'change_language': "🌐 Cambia Lingua",
+        'product_not_found': "❌ Prodotto non trovato",
+        'unauthorized': "❌ Accesso non autorizzato",
     },
     'pt': {
         'welcome': "Bem-vindo ao nosso Bot de E-commerce! 🛍️\nEscolha o seu idioma:",
@@ -279,6 +289,8 @@ TRANSLATIONS = {
         'select_language': "Selecione seu idioma:",
         'settings_menu': "⚙️ Configurações",
         'change_language': "🌐 Mudar Idioma",
+        'product_not_found': "❌ Produto não encontrado",
+        'unauthorized': "❌ Acesso não autorizado",
     },
 }
 
