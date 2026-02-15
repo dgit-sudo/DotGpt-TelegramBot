@@ -218,27 +218,6 @@ async def show_buyer_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await query.answer()
 
-        message_text += get_string("no_chats", language)
-    else:
-        for msg in messages:
-            sender = "You" if msg.sender_id == user_id else f"{'Buyer' if msg.sender_type == 'buyer' else 'Supplier'}"
-            message_text += f"\n{sender}: {msg.message}\n"
-    
-    message_text += "\n" + "=" * 30 + "\n"
-    message_text += f"\n{get_string('type_message', language)}\n"
-    
-    buttons = [
-        [InlineKeyboardButton(get_string("back", language), callback_data="chat_back")],
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(buttons)
-    
-    await query.edit_message_text(
-        text=message_text,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
-
 async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle chat-related actions"""
     query = update.callback_query
