@@ -20,6 +20,7 @@ STRINGS = {
         # Buyer
         "browse_products": "🛍️ Browse Products",
         "my_chats": "💬 My Chats",
+        "support": "🆘 Support",
         "order_history": "📦 Order History",
         "settings": "⚙️ Settings",
         "no_products": "No products available at the moment.",
@@ -30,6 +31,7 @@ STRINGS = {
         "view_payment_methods": "💳 View Payment Methods",
         "inquire_product": "❓ Inquire About Product",
         "chat_with_supplier": "Chat started! Your profile is hidden for privacy.",
+        "support_chat_started": "🆘 Support chat started. Type your message below.",
         "no_chats": "You have no active chats yet.",
         
         # Supplier
@@ -51,6 +53,7 @@ STRINGS = {
         "manage_users": "👥 Manage Users",
         "manage_suppliers_admin": "🏪 Manage Suppliers",
         "manage_products_admin": "📦 Manage Products",
+        "support_chats_admin": "🆘 Support Chats",
         "system_stats": "📊 System Statistics",
         "verify_supplier": "✅ Verify Supplier",
         "block_user": "🚫 Block User",

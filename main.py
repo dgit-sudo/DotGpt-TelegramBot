@@ -78,6 +78,11 @@ class DotGPTBot:
             buyer_handlers.handle_product_action,
             pattern=r"^product_"
         ))
+
+        self.app.add_handler(CallbackQueryHandler(
+            buyer_handlers.handle_buyer_action,
+            pattern=r"^buyer_"
+        ))
         
         self.app.add_handler(CallbackQueryHandler(
             buyer_handlers.handle_pagination,
@@ -92,6 +97,11 @@ class DotGPTBot:
         self.app.add_handler(CallbackQueryHandler(
             admin_handlers.handle_admin_action,
             pattern=r"^admin_"
+        ))
+
+        self.app.add_handler(CallbackQueryHandler(
+            chat_handlers.handle_support_action,
+            pattern=r"^support_"
         ))
         
         # Superadmin handlers

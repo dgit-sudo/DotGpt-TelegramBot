@@ -57,7 +57,6 @@ async def show_supplier_dashboard(update: Update, context: ContextTypes.DEFAULT_
     """Show supplier dashboard"""
     keyboard = [
         [InlineKeyboardButton(get_string("my_products", language), callback_data="supplier_products")],
-        [InlineKeyboardButton(get_string("add_product", language), callback_data="supplier_add_product")],
         [InlineKeyboardButton(get_string("buyer_inquiries", language), callback_data="supplier_inquiries")],
         [InlineKeyboardButton(get_string("payment_settings", language), callback_data="supplier_payment")],
         [InlineKeyboardButton(get_string("supplier_stats", language), callback_data="supplier_stats")],
@@ -109,7 +108,6 @@ async def show_supplier_products(update: Update, context: ContextTypes.DEFAULT_T
             message += f"📌 {product.name}\n"
     
     buttons = [
-        [InlineKeyboardButton(get_string("add_product", language), callback_data="supplier_add_product")],
         [InlineKeyboardButton(get_string("back", language), callback_data="supplier_dashboard")]
     ]
     
@@ -171,6 +169,8 @@ async def handle_supplier_action(update: Update, context: ContextTypes.DEFAULT_T
         user_id = update.effective_user.id
         supplier = get_supplier(user_id)
         await show_supplier_dashboard(update, context, language, supplier)
+    elif action == "register":
+        await supplier_panel(update, context)
     elif action == "products":
         await show_supplier_products(update, context)
     elif action == "inquiries":

@@ -152,6 +152,40 @@ class ChatMessage(Base):
     def __repr__(self):
         return f"<ChatMessage(id={self.id}, chat={self.chat_id})>"
 
+class SupportChat(Base):
+    """Support chat between buyer and admin (anonymized)"""
+    __tablename__ = "support_chats"
+
+    id = Column(Integer, primary_key=True)
+    buyer_id = Column(Integer, ForeignKey('buyers.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    active = Column(Boolean, default=True)
+
+    # Relationships
+    buyer = relationship("Buyer")
+    messages = relationship("SupportMessage", back_populates="chat", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<SupportChat(id={self.id}, buyer={self.buyer_id})>"
+
+
+class SupportMessage(Base):
+    """Support chat message between buyer and admin"""
+    __tablename__ = "support_messages"
+
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, ForeignKey('support_chats.id', ondelete='CASCADE'), nullable=False)
+    sender_id = Column(Integer, nullable=False)
+    sender_type = Column(String(20), nullable=False)  # "buyer" or "admin"
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    chat = relationship("SupportChat", back_populates="messages")
+
+    def __repr__(self):
+        return f"<SupportMessage(id={self.id}, chat={self.chat_id})>"
+
 class SupplierPaymentMethod(Base):
     """Payment methods supported by each supplier"""
     __tablename__ = "supplier_payment_methods"

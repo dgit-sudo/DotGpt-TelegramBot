@@ -9,6 +9,7 @@ from database_helpers import (
     get_buyer,
     get_or_create_chat,
     get_supplier_payment_methods,
+    get_or_create_support_chat,
 )
 from config import ITEMS_PER_PAGE
 import logging
@@ -19,20 +20,23 @@ async def browse_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show available products"""
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
+    query = update.callback_query
     
     buyer = get_buyer(user_id)
     if not buyer or not buyer.active:
-        await update.message.reply_text(
-            get_string("unauthorized", language)
-        )
+        if query:
+            await query.answer(get_string("unauthorized", language), show_alert=True)
+        else:
+            await update.message.reply_text(get_string("unauthorized", language))
         return
     
     products = get_all_active_products()
     
     if not products:
-        await update.message.reply_text(
-            get_string("no_products", language)
-        )
+        if query:
+            await query.edit_message_text(get_string("no_products", language))
+        else:
+            await update.message.reply_text(get_string("no_products", language))
         return
     
     # Show paginated products
@@ -206,6 +210,7 @@ async def show_buyer_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton(get_string("browse_products", language), callback_data="buyer_browse")],
         [InlineKeyboardButton(get_string("my_chats", language), callback_data="buyer_chats")],
+        [InlineKeyboardButton(get_string("support", language), callback_data="buyer_support")],
         [InlineKeyboardButton(get_string("order_history", language), callback_data="buyer_orders")],
         [InlineKeyboardButton(get_string("settings", language), callback_data="buyer_settings")],
     ]
@@ -219,3 +224,45 @@ async def show_buyer_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
     await query.answer()
+
+async def start_support_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start support chat for buyer"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    buyer = get_buyer(user_id)
+    if not buyer:
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+
+    chat = get_or_create_support_chat(buyer.id)
+    context.user_data['current_chat_type'] = 'support'
+    context.user_data['current_support_chat'] = chat.id
+
+    await query.edit_message_text(
+        text=get_string("support_chat_started", language),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_string("back", language), callback_data="buyer_menu")]
+        ])
+    )
+    await query.answer()
+
+async def handle_buyer_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle buyer menu actions"""
+    query = update.callback_query
+    language = context.user_data.get('language', 'en')
+
+    action = query.data.split("_")[1]
+
+    if action == "menu":
+        await show_buyer_menu(update, context)
+    elif action == "browse":
+        await browse_products(update, context)
+    elif action == "chats":
+        from handlers.chat_handlers import show_buyer_chats
+        await show_buyer_chats(update, context)
+    elif action == "support":
+        await start_support_chat(update, context)
+    else:
+        await query.answer(get_string("not_found", language), show_alert=True)
