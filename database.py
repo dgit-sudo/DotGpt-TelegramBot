@@ -7,6 +7,17 @@ from config import DATABASE_URL
 
 Base = declarative_base()
 
+# Database engine/session setup
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(DATABASE_URL)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 # Association table for products and suppliers (many-to-many with pricing)
 supplier_product = Table(
     'supplier_product',
@@ -175,6 +186,8 @@ class AdminUser(Base):
         role = "SuperAdmin" if self.is_superadmin else "Admin"
         return f"<AdminUser(id={self.telegram_id}, {role})>"
 
+
+def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)
 
