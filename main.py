@@ -63,7 +63,7 @@ class DotGPTBot:
         
         # Admin ID input handler (before general message handler)
         self.app.add_handler(MessageHandler(
-            filters.TEXT & filters.User(user_ids=None),  # Only text messages
+            filters.TEXT & ~filters.COMMAND,  # Only plain text messages
             admin_handlers.process_add_admin_id
         ))
         
