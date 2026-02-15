@@ -1,0 +1,216 @@
+"""
+Translation utilities for multi-language support.
+Supports all world languages with automatic translation.
+"""
+
+import asyncio
+from googletrans import Translator, LANGUAGES
+from typing import Optional, Dict
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Initialize translator
+translator = Translator()
+
+# Cache for translations to avoid repeated API calls
+translation_cache: Dict[str, str] = {}
+
+# Map of language names to language codes
+LANGUAGE_MAP = {
+    lang_name.lower(): lang_code
+    for lang_code, lang_name in LANGUAGES.items()
+}
+
+# Reverse map for getting language name from code
+LANGUAGE_NAMES = LANGUAGES.copy()
+
+
+def get_all_languages() -> Dict[str, str]:
+    """
+    Get all supported languages.
+    
+    Returns:
+        Dict: Language code -> Language name mapping
+        Example: {'en': 'English', 'es': 'Spanish', ...}
+    """
+    return LANGUAGES.copy()
+
+
+def get_language_code(language_name: str) -> Optional[str]:
+    """
+    Get language code from language name.
+    
+    Args:
+        language_name: Name of language (e.g., 'English', 'Spanish')
+    
+    Returns:
+        Language code (e.g., 'en', 'es') or None if not found
+    """
+    name_lower = language_name.lower()
+    
+    # Try exact match first
+    if name_lower in LANGUAGE_MAP:
+        return LANGUAGE_MAP[name_lower]
+    
+    # Try first word match (for compound names)
+    first_word = name_lower.split()[0]
+    if first_word in LANGUAGE_MAP:
+        return LANGUAGE_MAP[first_word]
+    
+    return None
+
+
+def get_language_name(language_code: str) -> str:
+    """
+    Get language name from language code.
+    
+    Args:
+        language_code: Language code (e.g., 'en', 'es')
+    
+    Returns:
+        Language name (e.g., 'English', 'Spanish')
+    """
+    return LANGUAGES.get(language_code, f"Unknown ({language_code})")
+
+
+async def translate_text(
+    text: str,
+    source_lang: str = 'auto',
+    target_lang: str = 'en'
+) -> str:
+    """
+    Translate text from source language to target language.
+    
+    Args:
+        text: Text to translate
+        source_lang: Source language code (default: 'auto' for auto-detect)
+        target_lang: Target language code (default: 'en' for English)
+    
+    Returns:
+        Translated text
+    """
+    # Don't translate empty text
+    if not text or len(text.strip()) == 0:
+        return text
+    
+    # If same language, no need to translate
+    if source_lang == target_lang and source_lang != 'auto':
+        return text
+    
+    # Check cache first
+    cache_key = f"{text[:50]}_{source_lang}_{target_lang}"
+    if cache_key in translation_cache:
+        return translation_cache[cache_key]
+    
+    try:
+        # Run translation in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: translator.translate(
+                text,
+                src_language=source_lang if source_lang != 'auto' else None,
+                dest_language=target_lang
+            )
+        )
+        
+        translated = result['text'] if isinstance(result, dict) else result.text
+        
+        # Cache the result
+        translation_cache[cache_key] = translated
+        
+        return translated
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return text  # Return original text if translation fails
+
+
+async def translate_message(
+    message: str,
+    buyer_language: str,
+    supplier_language: str,
+    sender_type: str = 'buyer'
+) -> str:
+    """
+    Translate a chat message between buyer and supplier.
+    
+    If sender is buyer, translate from buyer's language to supplier's language.
+    If sender is supplier, translate from supplier's language to buyer's language.
+    
+    Args:
+        message: The message text
+        buyer_language: Buyer's preferred language code
+        supplier_language: Supplier's preferred language code
+        sender_type: 'buyer' or 'supplier'
+    
+    Returns:
+        Translated message (or original if same language or error)
+    """
+    if sender_type == 'buyer':
+        # Message from buyer to supplier (buyer lang -> supplier lang)
+        return await translate_text(message, buyer_language, supplier_language)
+    else:
+        # Message from supplier to buyer (supplier lang -> buyer lang)
+        return await translate_text(message, supplier_language, buyer_language)
+
+
+def get_supported_language_list(limit: Optional[int] = None) -> Dict[str, str]:
+    """
+    Get list of supported languages for display in bot.
+    
+    Args:
+        limit: Maximum number of languages to return (None for all)
+    
+    Returns:
+        Dict of language codes to names, sorted alphabetically
+    """
+    langs = dict(sorted(LANGUAGES.items(), key=lambda x: x[1]))
+    
+    if limit:
+        # Return most popular languages first
+        popular = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh-cn', 'ja', 'ko']
+        popular_langs = {k: langs[k] for k in popular if k in langs}
+        
+        if len(popular_langs) < limit:
+            remaining = {k: v for k, v in langs.items() if k not in popular_langs}
+            popular_langs.update(dict(list(remaining.items())[:limit - len(popular_langs)]))
+        
+        return popular_langs
+    
+    return langs
+
+
+def clear_translation_cache():
+    """Clear the translation cache to free memory."""
+    global translation_cache
+    translation_cache.clear()
+    logger.info("Translation cache cleared")
+
+
+# Language selection interface text (multilingual)
+LANGUAGE_UI_TEXT = {
+    'en': "Select your language (Tap to see more):",
+    'es': "Selecciona tu idioma (Toca para ver más):",
+    'fr': "Sélectionnez votre langue (Appuyez pour voir plus):",
+    'de': "Wählen Sie Ihre Sprache (Tippen Sie auf Mehr anzeigen):",
+    'it': "Seleziona la tua lingua (Tocca per visualizzare di più):",
+    'pt': "Selecione seu idioma (Toque para ver mais):",
+    'ru': "Выберите свой язык (Нажмите, чтобы увидеть больше):",
+    'ja': "言語を選択してください (タップして詳細を表示):",
+    'zh-cn': "选择您的语言 (点击查看更多):",
+    'ko': "언어를 선택하세요 (더보기를 탭하세요):",
+}
+
+
+def get_language_selection_text(user_language: str = 'en') -> str:
+    """
+    Get language selection prompt in user's language.
+    
+    Args:
+        user_language: User's preferred language code
+    
+    Returns:
+        Language selection text in user's language
+    """
+    return LANGUAGE_UI_TEXT.get(user_language, LANGUAGE_UI_TEXT['en'])
