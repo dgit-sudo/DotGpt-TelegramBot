@@ -4,14 +4,37 @@ Supports all world languages with automatic translation.
 """
 
 import asyncio
-from googletrans import Translator, LANGUAGES
-from typing import Optional, Dict
 import logging
+from typing import Optional, Dict
+
+try:
+    from googletrans import Translator, LANGUAGES
+    GOOGLETRANS_AVAILABLE = True
+except Exception:
+    Translator = None
+    LANGUAGES = {}
+    GOOGLETRANS_AVAILABLE = False
+
+from config import SUPPORTED_LANGUAGES
 
 logger = logging.getLogger(__name__)
 
-# Initialize translator
-translator = Translator()
+FALLBACK_LANGUAGES = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+}
+
+ALL_LANGUAGES = LANGUAGES if LANGUAGES else {
+    code: FALLBACK_LANGUAGES.get(code, code)
+    for code in SUPPORTED_LANGUAGES
+}
+
+# Initialize translator if available
+translator = Translator() if GOOGLETRANS_AVAILABLE else None
 
 # Cache for translations to avoid repeated API calls
 translation_cache: Dict[str, str] = {}
@@ -19,11 +42,11 @@ translation_cache: Dict[str, str] = {}
 # Map of language names to language codes
 LANGUAGE_MAP = {
     lang_name.lower(): lang_code
-    for lang_code, lang_name in LANGUAGES.items()
+    for lang_code, lang_name in ALL_LANGUAGES.items()
 }
 
 # Reverse map for getting language name from code
-LANGUAGE_NAMES = LANGUAGES.copy()
+LANGUAGE_NAMES = ALL_LANGUAGES.copy()
 
 
 def get_all_languages() -> Dict[str, str]:
@@ -34,7 +57,7 @@ def get_all_languages() -> Dict[str, str]:
         Dict: Language code -> Language name mapping
         Example: {'en': 'English', 'es': 'Spanish', ...}
     """
-    return LANGUAGES.copy()
+    return ALL_LANGUAGES.copy()
 
 
 def get_language_code(language_name: str) -> Optional[str]:
@@ -71,7 +94,7 @@ def get_language_name(language_code: str) -> str:
     Returns:
         Language name (e.g., 'English', 'Spanish')
     """
-    return LANGUAGES.get(language_code, f"Unknown ({language_code})")
+    return ALL_LANGUAGES.get(language_code, f"Unknown ({language_code})")
 
 
 async def translate_text(
@@ -103,6 +126,9 @@ async def translate_text(
     if cache_key in translation_cache:
         return translation_cache[cache_key]
     
+    if translator is None:
+        return text
+
     try:
         # Run translation in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
@@ -110,8 +136,8 @@ async def translate_text(
             None,
             lambda: translator.translate(
                 text,
-                src_language=source_lang if source_lang != 'auto' else None,
-                dest_language=target_lang
+                src=source_lang if source_lang else 'auto',
+                dest=target_lang
             )
         )
         
@@ -165,7 +191,7 @@ def get_supported_language_list(limit: Optional[int] = None) -> Dict[str, str]:
     Returns:
         Dict of language codes to names, sorted alphabetically
     """
-    langs = dict(sorted(LANGUAGES.items(), key=lambda x: x[1]))
+    langs = dict(sorted(ALL_LANGUAGES.items(), key=lambda x: x[1]))
     
     if limit:
         # Return most popular languages first
