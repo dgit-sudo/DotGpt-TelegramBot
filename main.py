@@ -130,11 +130,11 @@ class DotGPTBot:
             pattern=r"^chat_"
         ))
     
-    async def on_startup(self):
+    async def on_startup(self, app=None):
         """Called when the bot starts"""
         logger.info("🤖 DotGPT Bot started successfully!")
     
-    async def on_shutdown(self):
+    async def on_shutdown(self, app=None):
         """Called when the bot shuts down"""
         logger.info("🛑 DotGPT Bot shutting down...")
     
