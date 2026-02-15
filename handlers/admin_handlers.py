@@ -208,6 +208,8 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_admin_panel(update, context, language)
     elif action == "suppliers":
         await show_suppliers_management(update, context)
+    elif action == "manage" and action_parts[2] == "users":
+        await show_manage_users(update, context)
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
     elif action == "add" and action_parts[2] == "product":
@@ -231,6 +233,38 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer(get_string("success", language), show_alert=True)
         await show_suppliers_management(update, context)
     
+    await query.answer()
+
+async def show_manage_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show manage users panel (admins/superadmins)"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    admins = get_all_admins()
+    message = f"👥 {get_string('manage_users', language)}\n\n"
+    message += f"Admins: {len(admins)}\n"
+
+    buttons = []
+
+    if is_superadmin(user_id):
+        buttons.extend([
+            [InlineKeyboardButton(get_string("add_admin", language), callback_data="superadmin_add_admin_form")],
+            [InlineKeyboardButton(get_string("remove_admin", language), callback_data="superadmin_remove_admin_list")],
+            [InlineKeyboardButton(get_string("list_admins", language), callback_data="superadmin_list_admins")],
+        ])
+    else:
+        # Regular admins can only view support chats and suppliers
+        buttons.append([InlineKeyboardButton(get_string("support", language), callback_data="admin_support_chats")])
+
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
+
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
     await query.answer()
 
 async def show_manage_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
