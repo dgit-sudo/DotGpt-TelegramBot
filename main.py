@@ -140,14 +140,15 @@ class DotGPTBot:
     
     def run(self):
         """Run the bot"""
-        self.app = Application.builder().token(BOT_TOKEN).build()
+        builder = Application.builder().token(BOT_TOKEN)
+        if hasattr(builder, "post_init"):
+            builder = builder.post_init(self.on_startup)
+        if hasattr(builder, "post_shutdown"):
+            builder = builder.post_shutdown(self.on_shutdown)
+        self.app = builder.build()
         
         # Setup handlers
         self.setup_handlers()
-        
-        # Add startup/shutdown callbacks
-        self.app.add_startup_signal_receiver(self.on_startup)
-        self.app.add_shutdown_signal_receiver(self.on_shutdown)
         
         # Start polling
         logger.info("Starting bot polling...")
