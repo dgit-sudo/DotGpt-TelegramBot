@@ -103,6 +103,15 @@ STRINGS = {
         "original_language": "Original Language",
         "translated_by": "Translated by Google Translate",
         "language_detected": "Language detected",
+
+        # Terms & Privacy
+        "terms_title": "Terms and Conditions",
+        "terms_body": "By using this bot, you agree to:\n\n1) Do not disclose your identity or contact details to the seller/buyer or arrange private deals.\n2) All sales are final and must be completed through this bot.\n3) We may monitor and block messages or uploads that violate these rules.\n\nYou are not allowed to disclose your identity to seller and deal privately. All sales are Final and need to be done through ChatGPT.",
+        "terms_accept": "✅ I Agree",
+        "terms_decline": "❌ I Do Not Agree",
+        "terms_required": "You must accept the terms to continue.",
+        "identity_disallowed": "❌ Do not share personal contact details or identity. Please keep all communication here.",
+        "media_disallowed": "❌ File sharing is not allowed in private chats. Please send text only.",
         
         # Pagination
         "page": "Page",

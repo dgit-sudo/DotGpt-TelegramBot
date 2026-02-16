@@ -9,7 +9,9 @@ from database_helpers import (
     is_superadmin,
     is_admin,
     make_superadmin,
-    get_all_admins
+    get_all_admins,
+    has_accepted_terms,
+    set_terms_accepted
 )
 from config import ADMIN_IDS
 import logging
@@ -85,6 +87,11 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, lan
     """Show main menu based on user type and their language"""
     user_id = update.effective_user.id
     query = update.callback_query
+
+    if not has_accepted_terms(user_id):
+        context.user_data['pending_menu_language'] = language
+        await show_terms(update, context, language)
+        return
     
     # Check user type from context or database
     is_superadmin_user = context.user_data.get('is_superadmin', False) or is_superadmin(user_id)
@@ -150,4 +157,58 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, lan
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+async def show_terms(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
+    """Show terms and conditions with accept/decline"""
+    message = f"*{get_string('terms_title', language)}*\n\n{get_string('terms_body', language)}"
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton(get_string('terms_accept', language), callback_data="terms_accept")],
+        [InlineKeyboardButton(get_string('terms_decline', language), callback_data="terms_decline")],
+    ])
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            text=message,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        await update.callback_query.answer()
+    else:
+        await update.message.reply_text(
+            message,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+async def handle_terms_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle terms accept/decline actions"""
+    query = update.callback_query
+    language = context.user_data.get('language', 'en')
+    action = query.data.split("_")[1]
+
+    if action == "accept":
+        user = update.effective_user
+        get_or_create_buyer(
+            telegram_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            language=language
+        )
+        set_terms_accepted(update.effective_user.id)
+        await query.answer(get_string("success", language), show_alert=True)
+        pending_language = context.user_data.get('pending_menu_language', language)
+        await show_main_menu(update, context, pending_language)
+        return
+
+    await query.answer(get_string("terms_required", language), show_alert=True)
+    await show_terms(update, context, language)
+
+async def ensure_terms_accepted(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str) -> bool:
+    """Ensure terms are accepted before proceeding"""
+    if has_accepted_terms(update.effective_user.id):
+        return True
+    context.user_data['pending_menu_language'] = language
+    await show_terms(update, context, language)
+    return False
 

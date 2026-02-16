@@ -43,10 +43,70 @@ def migrate_supplier_table():
                 print(f"Error adding is_banned column: {e}")
                 conn.rollback()
 
+        if 'terms_accepted' not in columns:
+            print("Adding 'terms_accepted' column to suppliers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE suppliers ADD COLUMN terms_accepted BOOLEAN DEFAULT 0
+                """))
+                conn.commit()
+                print("✓ Added 'terms_accepted' column")
+            except Exception as e:
+                print(f"Error adding terms_accepted column: {e}")
+                conn.rollback()
+
+        if 'terms_accepted_at' not in columns:
+            print("Adding 'terms_accepted_at' column to suppliers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE suppliers ADD COLUMN terms_accepted_at DATETIME
+                """))
+                conn.commit()
+                print("✓ Added 'terms_accepted_at' column")
+            except Exception as e:
+                print(f"Error adding terms_accepted_at column: {e}")
+                conn.rollback()
+
+def migrate_buyer_table():
+    """Add terms acceptance columns to buyers table if they don't exist"""
+    inspector = inspect(engine)
+
+    if 'buyers' not in inspector.get_table_names():
+        print("buyers table not found - will be created by init_db()")
+        return
+
+    columns = {col['name'] for col in inspector.get_columns('buyers')}
+
+    with engine.connect() as conn:
+        if 'terms_accepted' not in columns:
+            print("Adding 'terms_accepted' column to buyers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE buyers ADD COLUMN terms_accepted BOOLEAN DEFAULT 0
+                """))
+                conn.commit()
+                print("✓ Added 'terms_accepted' column")
+            except Exception as e:
+                print(f"Error adding terms_accepted column: {e}")
+                conn.rollback()
+
+        if 'terms_accepted_at' not in columns:
+            print("Adding 'terms_accepted_at' column to buyers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE buyers ADD COLUMN terms_accepted_at DATETIME
+                """))
+                conn.commit()
+                print("✓ Added 'terms_accepted_at' column")
+            except Exception as e:
+                print(f"Error adding terms_accepted_at column: {e}")
+                conn.rollback()
+
 def run_migrations():
     """Run all database migrations"""
     print("Running database migrations...")
     migrate_supplier_table()
+    migrate_buyer_table()
     print("Database migrations complete!")
 
 if __name__ == "__main__":

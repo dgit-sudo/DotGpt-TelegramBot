@@ -7,6 +7,7 @@ from database_helpers import (
     get_supplier_chats,
     get_products_by_supplier,
 )
+from handlers.language_selection import ensure_terms_accepted
 from config import ADMIN_IDS
 import logging
 
@@ -20,6 +21,9 @@ async def supplier_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user = update.effective_user
     language = context.user_data.get('language', 'en')
+
+    if not await ensure_terms_accepted(update, context, language):
+        return
     
     supplier = get_supplier(user_id)
     

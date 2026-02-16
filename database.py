@@ -66,6 +66,8 @@ class Supplier(Base):
     is_banned = Column(Boolean, default=False)  # True if rejected or banned
     active = Column(Boolean, default=True)
     language = Column(String(10), default="en")
+    terms_accepted = Column(Boolean, default=False)
+    terms_accepted_at = Column(DateTime)
     
     # Relationships
     prices = relationship("ProductPrice", back_populates="supplier", cascade="all, delete-orphan")
@@ -88,6 +90,8 @@ class Buyer(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     active = Column(Boolean, default=True)
     language = Column(String(10), default="en")
+    terms_accepted = Column(Boolean, default=False)
+    terms_accepted_at = Column(DateTime)
     
     # Relationships
     chats = relationship("Chat", back_populates="buyer")

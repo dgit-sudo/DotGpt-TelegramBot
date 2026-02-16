@@ -16,8 +16,35 @@ from database_helpers import (
 )
 from database_helpers import is_admin
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+IDENTITY_PATTERNS = [
+    re.compile(r"@\w{3,}"),
+    re.compile(r"(https?://|www\.)\S+", re.IGNORECASE),
+    re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+    re.compile(r"\b\+?\d[\d\s().-]{6,}\d\b"),
+    re.compile(r"\b(telegram|t\.me|telegram\.me|whatsapp|instagram|facebook|snapchat|wechat|line|viber|signal)\b", re.IGNORECASE),
+]
+
+def contains_identity_disclosure(text: str) -> bool:
+    """Detect identity or contact details in a message"""
+    if not text:
+        return False
+    return any(pattern.search(text) for pattern in IDENTITY_PATTERNS)
+
+def has_media(message) -> bool:
+    """Check if a message contains media"""
+    return any([
+        message.photo,
+        message.document,
+        message.video,
+        message.audio,
+        message.voice,
+        message.sticker,
+        message.animation,
+    ])
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages"""
@@ -28,6 +55,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if user is in a chat
     current_chat_id = context.user_data.get('current_chat')
     current_support_chat_id = context.user_data.get('current_support_chat')
+
+    message_text = update.message.text or update.message.caption
     
     if chat_type == 'support' and current_support_chat_id:
         chat = get_support_chat(current_support_chat_id)
@@ -45,11 +74,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(get_string("unauthorized", language))
             return
 
+        if not message_text:
+            await update.message.reply_text(get_string("media_disallowed", language))
+            return
+
         save_support_message(
             chat_id=current_support_chat_id,
             sender_id=user_id,
             sender_type=sender_type,
-            message=update.message.text
+            message=message_text
         )
 
         await update.message.reply_text(get_string("message_sent", language))
@@ -57,7 +90,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not current_chat_id:
         # Check if it's a command
-        if update.message.text.startswith('/'):
+        if update.message.text and update.message.text.startswith('/'):
             return
         
         # Otherwise ask user what they want to do
@@ -74,6 +107,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = get_chat(current_chat_id)
     if not chat:
         await update.message.reply_text(get_string("not_found", language))
+        return
+
+    if has_media(update.message):
+        await update.message.reply_text(get_string("media_disallowed", language))
+        return
+
+    if contains_identity_disclosure(message_text or ""):
+        await update.message.reply_text(get_string("identity_disallowed", language))
         return
     
     # Determine sender type
@@ -93,7 +134,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=current_chat_id,
         sender_id=user_id,
         sender_type=sender_type,
-        message=update.message.text
+        message=message_text
     )
     
     await update.message.reply_text(get_string("message_sent", language))

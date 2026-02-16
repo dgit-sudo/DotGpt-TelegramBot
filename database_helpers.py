@@ -1,6 +1,7 @@
 from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage
 from typing import List, Optional
 from sqlalchemy import and_, or_
+from datetime import datetime
 
 def get_or_create_buyer(telegram_id: int, username: str = None, first_name: str = None, last_name: str = None, language: str = "en") -> Buyer:
     """Get or create buyer with language preference"""
@@ -30,15 +31,44 @@ def get_or_create_supplier(telegram_id: int, company_name: str, username: str = 
     supplier = db.query(Supplier).filter(Supplier.telegram_id == telegram_id).first()
     
     if not supplier:
+        buyer = db.query(Buyer).filter(Buyer.telegram_id == telegram_id).first()
+        terms_accepted = buyer.terms_accepted if buyer else False
+        terms_accepted_at = buyer.terms_accepted_at if buyer else None
         supplier = Supplier(
             telegram_id=telegram_id,
             company_name=company_name,
-            username=username
+            username=username,
+            terms_accepted=terms_accepted,
+            terms_accepted_at=terms_accepted_at
         )
         db.add(supplier)
         db.commit()
     db.close()
     return supplier
+
+def has_accepted_terms(telegram_id: int) -> bool:
+    """Check if user has accepted terms (buyer record)"""
+    db = SessionLocal()
+    buyer = db.query(Buyer).filter(Buyer.telegram_id == telegram_id).first()
+    accepted = bool(buyer and buyer.terms_accepted)
+    db.close()
+    return accepted
+
+def set_terms_accepted(telegram_id: int) -> None:
+    """Mark terms as accepted for buyer and supplier records"""
+    db = SessionLocal()
+    buyer = db.query(Buyer).filter(Buyer.telegram_id == telegram_id).first()
+    if buyer:
+        buyer.terms_accepted = True
+        buyer.terms_accepted_at = datetime.utcnow()
+
+    supplier = db.query(Supplier).filter(Supplier.telegram_id == telegram_id).first()
+    if supplier:
+        supplier.terms_accepted = True
+        supplier.terms_accepted_at = datetime.utcnow()
+
+    db.commit()
+    db.close()
 
 def get_supplier(telegram_id: int) -> Optional[Supplier]:
     """Get supplier by telegram ID"""

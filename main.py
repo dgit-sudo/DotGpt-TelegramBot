@@ -52,6 +52,11 @@ class DotGPTBot:
             language_selection.select_language,
             pattern=r"^lang_"
         ))
+
+        self.app.add_handler(CallbackQueryHandler(
+            language_selection.handle_terms_action,
+            pattern=r"^terms_"
+        ))
         
         # Admin commands
         self.app.add_handler(CommandHandler("admin", admin_handlers.admin_menu))

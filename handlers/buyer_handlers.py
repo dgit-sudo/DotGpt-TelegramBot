@@ -11,6 +11,7 @@ from database_helpers import (
     get_supplier_payment_methods,
     get_or_create_support_chat,
 )
+from handlers.language_selection import ensure_terms_accepted
 from config import ITEMS_PER_PAGE
 import logging
 
@@ -21,6 +22,9 @@ async def browse_products(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
     query = update.callback_query
+
+    if not await ensure_terms_accepted(update, context, language):
+        return
     
     buyer = get_buyer(user_id)
     if not buyer or not buyer.active:
@@ -211,6 +215,9 @@ async def show_buyer_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show buyer menu"""
     language = context.user_data.get('language', 'en')
     query = update.callback_query
+
+    if not await ensure_terms_accepted(update, context, language):
+        return
     
     keyboard = [
         [InlineKeyboardButton(get_string("browse_products", language), callback_data="buyer_browse")],
