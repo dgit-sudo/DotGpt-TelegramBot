@@ -102,6 +102,11 @@ class DotGPTBot:
         ))
         
         self.app.add_handler(CallbackQueryHandler(
+            supplier_handlers.handle_supplier_language_selection,
+            pattern=r"^supplier_lang_"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
             admin_handlers.handle_admin_action,
             pattern=r"^admin_"
         ))

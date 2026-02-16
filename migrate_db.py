@@ -67,6 +67,30 @@ def migrate_supplier_table():
                 print(f"Error adding terms_accepted_at column: {e}")
                 conn.rollback()
 
+        if 'auto_translate' not in columns:
+            print("Adding 'auto_translate' column to suppliers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE suppliers ADD COLUMN auto_translate BOOLEAN DEFAULT 1
+                """))
+                conn.commit()
+                print("✓ Added 'auto_translate' column")
+            except Exception as e:
+                print(f"Error adding auto_translate column: {e}")
+                conn.rollback()
+
+        if 'language' not in columns:
+            print("Adding 'language' column to suppliers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE suppliers ADD COLUMN language VARCHAR(10) DEFAULT 'en'
+                """))
+                conn.commit()
+                print("✓ Added 'language' column")
+            except Exception as e:
+                print(f"Error adding language column: {e}")
+                conn.rollback()
+
 def migrate_buyer_table():
     """Add terms acceptance columns to buyers table if they don't exist"""
     inspector = inspect(engine)

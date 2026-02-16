@@ -590,3 +590,56 @@ def get_admin(telegram_id: int) -> Optional[AdminUser]:
     admin = db.query(AdminUser).filter(AdminUser.telegram_id == telegram_id).first()
     db.close()
     return admin
+
+def get_supplier_statistics(supplier_id: int) -> dict:
+    """Get supplier statistics including product count and stock info"""
+    db = SessionLocal()
+    
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        db.close()
+        return None
+    
+    products = supplier.products
+    product_count = len(products)
+    
+    total_stock = 0
+    low_stock_items = []  # Products with stock <= 5
+    out_of_stock_items = []  # Products with stock == 0
+    not_tracked_items = []  # Products with stock < 0
+    
+    for product in products:
+        # Get the ProductPrice record for this supplier-product pair
+        price_record = db.query(ProductPrice).filter(
+            and_(ProductPrice.product_id == product.id, ProductPrice.supplier_id == supplier_id)
+        ).first()
+        
+        if price_record:
+            stock = price_record.stock
+            
+            if stock < 0:
+                not_tracked_items.append(product.name)
+            elif stock == 0:
+                out_of_stock_items.append(product.name)
+            elif stock <= 5:
+                low_stock_items.append((product.name, stock))
+            else:
+                total_stock += stock
+    
+    db.close()
+    
+    return {
+        'product_count': product_count,
+        'total_stock': total_stock,
+        'low_stock_items': low_stock_items,  # List of (product_name, stock) tuples
+        'out_of_stock_items': out_of_stock_items,
+        'not_tracked_items': not_tracked_items,
+        'supplier_id': supplier_id
+    }
+
+def log_restock_alert(supplier_id: int, product_name: str, message: str) -> bool:
+    """Log a restock alert (can be used to track which products need restocking)"""
+    # This is a placeholder for storing alert notifications
+    # In production, this would save to a database table or send email to admins
+    # For now, just return True
+    return True

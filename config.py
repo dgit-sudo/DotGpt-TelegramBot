@@ -8,7 +8,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(","))) if os.getenv("ADMIN_IDS") else []
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dotgpt_bot.db")
 
-# Supported Languages - 25+ world languages
+# Supported Languages - 100+ world languages
 SUPPORTED_LANGUAGES = [
     "en",  # English
     "es",  # Spanish
@@ -44,6 +44,83 @@ SUPPORTED_LANGUAGES = [
     "sl",  # Slovenian
     "sk",  # Slovak
     "et",  # Estonian
+    "lv",  # Latvian
+    "lt",  # Lithuanian
+    "mt",  # Maltese
+    "ga",  # Irish
+    "cy",  # Welsh
+    "be",  # Belarusian
+    "ka",  # Georgian
+    "hy",  # Armenian
+    "az",  # Azerbaijani
+    "kk",  # Kazakh
+    "uz",  # Uzbek
+    "tk",  # Turkmen
+    "tg",  # Tajik
+    "ky",  # Kyrgyz
+    "mn",  # Mongolian
+    "fa",  # Persian
+    "ur",  # Urdu
+    "pa",  # Punjabi
+    "gu",  # Gujarati
+    "ta",  # Tamil
+    "te",  # Telugu
+    "kn",  # Kannada
+    "ml",  # Malayalam
+    "mr",  # Marathi
+    "si",  # Sinhala
+    "my",  # Burmese
+    "km",  # Khmer
+    "lo",  # Lao
+    "jv",  # Javanese
+    "su",  # Sundanese
+    "ms",  # Malay
+    "fil", # Filipino
+    "ceb", # Cebuano
+    "eo",  # Esperanto
+    "ca",  # Catalan
+    "gl",  # Galician
+    "eu",  # Basque
+    "sq",  # Albanian
+    "mk",  # Macedonian
+    "is",  # Icelandic
+    "af",  # Afrikaans
+    "zu",  # Zulu
+    "xh",  # Xhosa
+    "yo",  # Yoruba
+    "ig",  # Igbo
+    "sw",  # Swahili
+    "ha",  # Hausa
+    "am",  # Amharic
+    "ti",  # Tigrinya
+    "rw",  # Kinyarwanda
+    "som", # Somali
+    "ckb", # Kurdish (Central)
+    "ps",  # Pashto
+    "as",  # Assamese
+    "or",  # Odia
+    "kok", # Konkani
+    "doi", # Dogri
+    "mni", # Manipuri
+    "sat", # Santali
+    "kok", # Kokborok
+    "brx", # Bodo
+    "mai", # Maithili
+    "ne",  # Nepali
+    "new", # Newari
+    "bo",  # Tibetan
+    "dz",  # Dzongkha
+    "snd", # Sindhi
+    "cmn", # Mandarin Chinese
+    "cdo", # Min Dong
+    "wuu", # Wu Chinese
+    "yue", # Cantonese
+    "hsn", # Xiang
+    "gan", # Gan
+    "hak", # Hakka
+    "min", # Minangkabau
+    "ban", # Balinese
+    "mad", # Madurese
 ]
 DEFAULT_LANGUAGE = "en"
 

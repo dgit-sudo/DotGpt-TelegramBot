@@ -13,8 +13,9 @@ from database_helpers import (
     save_support_message,
     get_all_support_chats,
     get_support_chats_for_buyer,
+    is_admin
 )
-from database_helpers import is_admin
+from sqlalchemy import and_
 import logging
 import re
 
@@ -248,7 +249,9 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
                 if buyer and msg.sender_type == 'supplier':
                     # Buyer reading supplier message - translate from supplier lang to buyer lang
                     supplier_lang = chat.supplier.language if chat.supplier else 'en'
-                    if supplier_lang != buyer.language:
+                    supplier_obj = chat.supplier
+                    # Only translate if supplier has auto_translate enabled
+                    if supplier_obj and supplier_obj.auto_translate and supplier_lang != buyer.language:
                         display_message = await translate_message(
                             msg.message,
                             buyer_lang=buyer.language,
@@ -258,11 +261,13 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
                 elif supplier and msg.sender_type == 'buyer':
                     # Supplier reading buyer message - translate from buyer lang to supplier lang
                     buyer_lang = chat.buyer.language if chat.buyer else 'en'
-                    if buyer_lang != supplier.language:
+                    supplier_obj = supplier
+                    # Only translate if supplier has auto_translate enabled
+                    if supplier_obj.auto_translate and buyer_lang != supplier_obj.language:
                         display_message = await translate_message(
                             msg.message,
                             buyer_lang=buyer_lang,
-                            supplier_lang=supplier.language,
+                            supplier_lang=supplier_obj.language,
                             sender_type='buyer'
                         )
             except Exception as e:
@@ -273,9 +278,13 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     message_text += "\n" + "=" * 30 + "\n"
     message_text += f"\n{get_string('type_message', language)}\n"
     
-    buttons = [
-        [InlineKeyboardButton(get_string("back", language), callback_data="chat_back")],
-    ]
+    buttons = []
+    
+    # Add sale done button for suppliers
+    if supplier:
+        buttons.append([InlineKeyboardButton(get_string("mark_sale_done", language), callback_data=f"sale_product_select_{chat_id}")])
+    
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="chat_back")])
     
     reply_markup = InlineKeyboardMarkup(buttons)
     
@@ -289,6 +298,18 @@ async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Handle chat-related actions"""
     query = update.callback_query
     language = context.user_data.get('language', 'en')
+    
+    # Handle sale-related callbacks
+    if query.data.startswith("sale_product_select_"):
+        chat_id = int(query.data.split("_")[3])
+        await show_sale_product_selection(update, context, chat_id)
+        return
+    elif query.data.startswith("sale_mark_"):
+        parts = query.data.split("_")
+        chat_id = int(parts[2])
+        product_id = int(parts[3])
+        await mark_sale_as_complete(update, context, chat_id, product_id)
+        return
     
     action = query.data.split("_")[1]
     
@@ -406,6 +427,104 @@ async def show_buyer_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
     await query.answer()
+
+async def show_sale_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    """Show product selection for marking a sale"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    supplier = get_supplier(user_id)
+    if not supplier:
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Get supplier's products
+    from database_helpers import get_products_by_supplier
+    products = get_products_by_supplier(supplier.id)
+    
+    if not products:
+        await query.answer(get_string("no_products", language), show_alert=True)
+        return
+    
+    message = f"✅ {get_string('mark_sale_done', language)}\n\n"
+    message += f"{get_string('select_product', language)}:\n\n"
+    
+    buttons = []
+    for product in products:
+        buttons.append([
+            InlineKeyboardButton(product.name, callback_data=f"sale_mark_{chat_id}_{product.id}")
+        ])
+    
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data=f"chat_open_{chat_id}")])
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    await query.answer()
+
+async def mark_sale_as_complete(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int, product_id: int):
+    """Mark a sale as complete and reduce stock"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    supplier = get_supplier(user_id)
+    if not supplier:
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Reduce stock by 1
+    from database_helpers import update_product_stock
+    from database import SessionLocal, ProductPrice
+    
+    db = SessionLocal()
+    price_record = db.query(ProductPrice).filter(
+        and_(
+            ProductPrice.product_id == product_id,
+            ProductPrice.supplier_id == supplier.id
+        )
+    ).first()
+    
+    if not price_record:
+        db.close()
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+    
+    # Get current stock
+    current_stock = price_record.stock
+    
+    # Reduce by 1 (only if stock > 0 or if stock is being tracked)
+    if current_stock < 0:
+        # Stock not being tracked, just mark as done without changing stock
+        message = f"✅ {get_string('sale_completed', language)}!\n\n"
+        message += f"Product: {price_record.product.name}\n"
+        message += f"Stock tracking: Not tracked"
+    else:
+        # Reduce stock by 1
+        price_record.stock = current_stock - 1
+        db.commit()
+        
+        message = f"✅ {get_string('sale_completed', language)}!\n\n"
+        message += f"Product: {price_record.product.name}\n"
+        message += f"Stock remaining: {price_record.stock}"
+    
+    db.close()
+    
+    # Show confirmation
+    buttons = [[InlineKeyboardButton(get_string("back", language), callback_data=f"chat_open_{chat_id}")]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    await query.answer(get_string("stock_reduced", language), show_alert=False)
 
 async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle chat-related actions"""

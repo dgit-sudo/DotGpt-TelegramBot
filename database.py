@@ -66,6 +66,7 @@ class Supplier(Base):
     is_banned = Column(Boolean, default=False)  # True if rejected or banned
     active = Column(Boolean, default=True)
     language = Column(String(10), default="en")
+    auto_translate = Column(Boolean, default=True)  # Whether to auto-translate messages
     terms_accepted = Column(Boolean, default=False)
     terms_accepted_at = Column(DateTime)
     
