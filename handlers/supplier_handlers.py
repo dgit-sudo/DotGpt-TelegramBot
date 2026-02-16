@@ -6,7 +6,6 @@ from database_helpers import (
     get_supplier,
     get_supplier_chats,
     get_products_by_supplier,
-    create_supplier_verification_request,
 )
 from config import ADMIN_IDS
 import logging
