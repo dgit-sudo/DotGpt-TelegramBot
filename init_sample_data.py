@@ -5,6 +5,7 @@ Creates test products, suppliers and sets up initial data
 """
 
 from database import SessionLocal, init_db, Product, Supplier, ProductPrice, SupplierPaymentMethod
+from migrate_db import run_migrations
 from database_helpers import get_or_create_buyer
 import logging
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 def init_sample_data():
     """Initialize sample data for testing"""
     init_db()
+    run_migrations()
     db = SessionLocal()
     
     try:

@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from config import BOT_TOKEN, ADMIN_IDS
 from database import init_db
+from migrate_db import run_migrations
 from strings import get_string
 
 # Enable logging
@@ -12,8 +13,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Database
+# Initialize Database and run migrations
 init_db()
+run_migrations()
 
 # Import handlers
 from handlers import (
