@@ -148,6 +148,44 @@ def attach_product_to_supplier(product_id: int, supplier_id: int, price: float, 
     db.close()
     return price_entry
 
+def get_out_of_stock_suppliers(product_id: int) -> List[dict]:
+    """Get suppliers for a product that are out of stock (stock == 0)"""
+    db = SessionLocal()
+    results = (
+        db.query(ProductPrice, Supplier)
+        .join(Supplier, ProductPrice.supplier_id == Supplier.id)
+        .filter(
+            ProductPrice.product_id == product_id,
+            ProductPrice.stock == 0
+        )
+        .all()
+    )
+
+    out_of_stock = [
+        {
+            "supplier_id": supplier.id,
+            "supplier_name": supplier.company_name,
+        }
+        for price, supplier in results
+    ]
+    db.close()
+    return out_of_stock
+
+def update_product_stock(product_id: int, supplier_id: int, stock: int) -> bool:
+    """Update stock for a product-supplier price entry"""
+    db = SessionLocal()
+    price_entry = db.query(ProductPrice).filter(
+        and_(ProductPrice.product_id == product_id, ProductPrice.supplier_id == supplier_id)
+    ).first()
+    if not price_entry:
+        db.close()
+        return False
+
+    price_entry.stock = stock
+    db.commit()
+    db.close()
+    return True
+
 def get_all_active_products() -> List[Product]:
     """Get all active products"""
     db = SessionLocal()

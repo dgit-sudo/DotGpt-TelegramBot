@@ -23,6 +23,8 @@ from database_helpers import (
     get_supplier_by_id,
     attach_product_to_supplier,
     get_verified_suppliers,
+    get_out_of_stock_suppliers,
+    update_product_stock,
 )
 from config import ADMIN_IDS
 import logging
@@ -222,6 +224,13 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         elif len(action_parts) == 5 and action_parts[3] == "supplier":
             supplier_id = int(action_parts[4])
             await finalize_new_product(update, context, supplier_id)
+    elif action == "restock" and action_parts[2] == "product":
+        product_id = int(action_parts[3])
+        await show_restock_supplier_select(update, context, product_id)
+    elif action == "restock" and action_parts[2] == "supplier":
+        product_id = int(action_parts[3])
+        supplier_id = int(action_parts[4])
+        await show_restock_form(update, context, product_id, supplier_id)
     elif action == "support" and action_parts[2] == "chats":
         from handlers.chat_handlers import show_support_chats
         await show_support_chats(update, context)
@@ -302,6 +311,16 @@ async def show_manage_products(update: Update, context: ContextTypes.DEFAULT_TYP
                     callback_data=f"admin_delete_product_{product.id}"
                 )
             ])
+
+        for product in products:
+            out_of_stock = get_out_of_stock_suppliers(product.id)
+            if out_of_stock:
+                buttons.append([
+                    InlineKeyboardButton(
+                        f"➕ Restock {product.name}",
+                        callback_data=f"admin_restock_product_{product.id}"
+                    )
+                ])
 
     buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
 
@@ -386,7 +405,7 @@ async def finalize_new_product(update: Update, context: ContextTypes.DEFAULT_TYP
         product_id=product.id,
         supplier_id=supplier_id,
         price=data['price'],
-        stock=data.get('stock', 0),
+        stock=data.get('stock', -1),
         currency="USD"
     )
 
@@ -438,6 +457,66 @@ async def delete_product_and_refresh(update: Update, context: ContextTypes.DEFAU
         await query.answer(get_string("operation_failed", language), show_alert=True)
 
     await show_manage_products(update, context)
+
+async def show_restock_supplier_select(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int):
+    """Select out-of-stock seller to restock"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    product = get_product_by_id(product_id)
+    if not product:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    suppliers = get_out_of_stock_suppliers(product_id)
+    if not suppliers:
+        await query.edit_message_text(
+            text="✅ No out-of-stock sellers for this product.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")]
+            ])
+        )
+        await query.answer()
+        return
+
+    message = f"➕ Restock {product.name}\n\nSelect seller:\n"
+    buttons = []
+    for supplier in suppliers:
+        buttons.append([
+            InlineKeyboardButton(
+                supplier["supplier_name"],
+                callback_data=f"admin_restock_supplier_{product_id}_{supplier['supplier_id']}"
+            )
+        ])
+
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")])
+    await query.edit_message_text(text=message, reply_markup=InlineKeyboardMarkup(buttons))
+    await query.answer()
+
+async def show_restock_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int, supplier_id: int):
+    """Ask admin for new stock quantity"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    product = get_product_by_id(product_id)
+    supplier = get_supplier_by_id(supplier_id)
+    if not product or not supplier:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    context.user_data['admin_restock'] = {
+        "step": "stock",
+        "product_id": product_id,
+        "supplier_id": supplier_id,
+    }
+
+    await query.edit_message_text(
+        text=f"➕ Restock {product.name} for {supplier.company_name}\n\nSend new stock quantity:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")]
+        ])
+    )
+    await query.answer()
 
 async def show_attach_product_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Select product to attach"""
@@ -815,8 +894,35 @@ async def process_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             flow['data']['price'] = price
             flow['step'] = "stock"
-            await update.message.reply_text("Send stock quantity (number):")
+            await update.message.reply_text("Send stock quantity (number) or '-' to skip:")
             return
+        if step == "stock":
+            if text in {"-", "skip", "Skip"}:
+                flow['data']['stock'] = -1
+            else:
+                try:
+                    stock = int(text)
+                    if stock < 0:
+                        raise ValueError()
+                except ValueError:
+                    await update.message.reply_text("❌ Please send a valid stock number (e.g. 10) or '-' to skip")
+                    return
+
+                flow['data']['stock'] = stock
+            flow['step'] = "supplier"
+            await show_new_product_supplier_select(update, context)
+            return
+
+    if context.user_data.get('admin_restock'):
+        if not is_admin(user_id):
+            await update.message.reply_text(get_string("unauthorized", language))
+            context.user_data.pop('admin_restock', None)
+            return
+
+        flow = context.user_data['admin_restock']
+        step = flow.get('step')
+        text = update.message.text.strip()
+
         if step == "stock":
             try:
                 stock = int(text)
@@ -826,9 +932,16 @@ async def process_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYP
                 await update.message.reply_text("❌ Please send a valid stock number (e.g. 10)")
                 return
 
-            flow['data']['stock'] = stock
-            flow['step'] = "supplier"
-            await show_new_product_supplier_select(update, context)
+            result = update_product_stock(
+                product_id=flow['product_id'],
+                supplier_id=flow['supplier_id'],
+                stock=stock
+            )
+            context.user_data.pop('admin_restock', None)
+            if result:
+                await update.message.reply_text("✅ Stock updated")
+            else:
+                await update.message.reply_text(get_string("operation_failed", language))
             return
     
     # Check if user is waiting for admin ID input

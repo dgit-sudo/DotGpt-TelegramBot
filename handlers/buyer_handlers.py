@@ -140,7 +140,12 @@ async def show_product_details(update: Update, context: ContextTypes.DEFAULT_TYP
         if supplier and supplier.status == "verified" and not supplier.is_banned and supplier.active:
             message += f"\n🏪 {supplier.company_name}"
             message += f"\n   💰 {price.price} {price.currency}"
-            message += f"\n   📦 {get_string('stock', language) if 'stock' in dir() else 'Stock'}: {price.stock}\n"
+            if price.stock < 0:
+                message += "\n   📦 Stock: Not tracked\n"
+            elif price.stock == 0:
+                message += "\n   ❌ Out of stock\n"
+            else:
+                message += f"\n   📦 Stock: {price.stock}\n"
             
             buttons.append([
                 InlineKeyboardButton(
