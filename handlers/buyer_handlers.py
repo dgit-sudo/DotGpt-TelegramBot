@@ -264,5 +264,8 @@ async def handle_buyer_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_buyer_chats(update, context)
     elif action == "support":
         await start_support_chat(update, context)
+    elif action == "settings":
+        from handlers.start import show_language_selection
+        await show_language_selection(update, context, page=0)
     else:
         await query.answer(get_string("not_found", language), show_alert=True)
