@@ -228,16 +228,21 @@ def get_all_chats():
     db.close()
     return chats
 
-def get_or_create_support_chat(buyer_id: int) -> SupportChat:
-    """Get or create support chat for buyer"""
+def get_or_create_support_chat(buyer_id: int) -> int:
+    """Get or create support chat for buyer and return its id"""
     db = SessionLocal()
-    chat = db.query(SupportChat).filter(SupportChat.buyer_id == buyer_id, SupportChat.active == True).first()
+    chat = db.query(SupportChat).filter(
+        SupportChat.buyer_id == buyer_id,
+        SupportChat.active == True
+    ).first()
     if not chat:
         chat = SupportChat(buyer_id=buyer_id, active=True)
         db.add(chat)
         db.commit()
+        db.refresh(chat)
+    chat_id = chat.id
     db.close()
-    return chat
+    return chat_id
 
 def get_support_chat(chat_id: int) -> Optional[SupportChat]:
     """Get support chat by ID"""

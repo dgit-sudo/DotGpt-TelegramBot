@@ -236,9 +236,9 @@ async def start_support_chat(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
 
-    chat = get_or_create_support_chat(buyer.id)
+    chat_id = get_or_create_support_chat(buyer.id)
     context.user_data['current_chat_type'] = 'support'
-    context.user_data['current_support_chat'] = chat.id
+    context.user_data['current_support_chat'] = chat_id
 
     await query.edit_message_text(
         text=get_string("support_chat_started", language),
