@@ -18,9 +18,11 @@ from database_helpers import (
     remove_admin,
     get_all_products,
     create_product,
+    delete_product,
     get_product_by_id,
     get_supplier_by_id,
     attach_product_to_supplier,
+    get_verified_suppliers,
 )
 from config import ADMIN_IDS
 import logging
@@ -215,20 +217,20 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
     elif action == "add" and action_parts[2] == "product":
-        await show_add_product_form(update, context)
-    elif action == "attach" and action_parts[2] == "product":
-        if len(action_parts) == 4:
-            product_id = int(action_parts[3])
-            await show_attach_supplier_select(update, context, product_id)
-        else:
-            await show_attach_product_select(update, context)
-    elif action == "attach" and action_parts[2] == "supplier":
-        product_id = int(action_parts[3])
-        supplier_id = int(action_parts[4])
-        await show_attach_price_form(update, context, product_id, supplier_id)
+        if len(action_parts) == 3:
+            await show_add_product_form(update, context)
+        elif len(action_parts) == 5 and action_parts[3] == "supplier":
+            supplier_id = int(action_parts[4])
+            await finalize_new_product(update, context, supplier_id)
     elif action == "support" and action_parts[2] == "chats":
         from handlers.chat_handlers import show_support_chats
         await show_support_chats(update, context)
+    elif action == "delete" and action_parts[2] == "product":
+        product_id = int(action_parts[3])
+        await show_delete_product_confirm(update, context, product_id)
+    elif action == "delete" and action_parts[2] == "confirm":
+        product_id = int(action_parts[3])
+        await delete_product_and_refresh(update, context, product_id)
     elif action == "verify":
         supplier_id = int(action_parts[2])
         verify_supplier(supplier_id)
@@ -290,9 +292,18 @@ async def show_manage_products(update: Update, context: ContextTypes.DEFAULT_TYP
 
     buttons = [
         [InlineKeyboardButton(get_string("add_product", language), callback_data="admin_add_product")],
-        [InlineKeyboardButton("🔗 Attach Product", callback_data="admin_attach_product")],
-        [InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")],
     ]
+
+    if products:
+        for product in products:
+            buttons.append([
+                InlineKeyboardButton(
+                    f"🗑️ Delete {product.name}",
+                    callback_data=f"admin_delete_product_{product.id}"
+                )
+            ])
+
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
 
     reply_markup = InlineKeyboardMarkup(buttons)
     await query.edit_message_text(
@@ -319,6 +330,114 @@ async def show_add_product_form(update: Update, context: ContextTypes.DEFAULT_TY
         ])
     )
     await query.answer()
+
+async def show_new_product_supplier_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Select verified seller to attach to new product"""
+    language = context.user_data.get('language', 'en')
+    suppliers = get_verified_suppliers()
+
+    if not suppliers:
+        await update.message.reply_text(get_string("not_found", language))
+        return
+
+    buttons = []
+    message = "🔗 Select seller for this product:\n\n"
+    for supplier in suppliers:
+        message += f"✅ {supplier.company_name}\n"
+        buttons.append([
+            InlineKeyboardButton(
+                supplier.company_name,
+                callback_data=f"admin_add_product_supplier_{supplier.id}"
+            )
+        ])
+
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")])
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text=message, reply_markup=reply_markup)
+        await update.callback_query.answer()
+    else:
+        await update.message.reply_text(text=message, reply_markup=reply_markup)
+
+async def finalize_new_product(update: Update, context: ContextTypes.DEFAULT_TYPE, supplier_id: int):
+    """Create the product and attach it to the selected seller"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    flow = context.user_data.get('admin_add_product')
+    if not flow:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    data = flow.get('data', {})
+    if not data.get('name') or data.get('price') is None:
+        context.user_data.pop('admin_add_product', None)
+        await query.answer(get_string("operation_failed", language), show_alert=True)
+        return
+
+    product = create_product(
+        name=data['name'],
+        description=data.get('description'),
+        category=data.get('category')
+    )
+
+    result = attach_product_to_supplier(
+        product_id=product.id,
+        supplier_id=supplier_id,
+        price=data['price'],
+        stock=data.get('stock', 0),
+        currency="USD"
+    )
+
+    context.user_data.pop('admin_add_product', None)
+
+    if result:
+        await query.edit_message_text(
+            text=f"✅ Product created and linked to seller: {product.name} (ID: {product.id})",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")]
+            ])
+        )
+    else:
+        await query.edit_message_text(
+            text=get_string("operation_failed", language),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")]
+            ])
+        )
+    await query.answer()
+
+async def show_delete_product_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int):
+    """Confirm product deletion"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    product = get_product_by_id(product_id)
+    if not product:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    message = f"🗑️ Delete product?\n\n{product.name} (ID: {product.id})"
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Delete", callback_data=f"admin_delete_confirm_{product_id}")],
+        [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")],
+    ])
+
+    await query.edit_message_text(text=message, reply_markup=reply_markup)
+    await query.answer()
+
+async def delete_product_and_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int):
+    """Delete product and refresh management view"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    if delete_product(product_id):
+        await query.answer(get_string("success", language), show_alert=True)
+    else:
+        await query.answer(get_string("operation_failed", language), show_alert=True)
+
+    await show_manage_products(update, context)
 
 async def show_attach_product_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Select product to attach"""
@@ -668,66 +787,48 @@ async def process_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYP
         if step == "name":
             flow['data']['name'] = text
             flow['step'] = "description"
-            await update.message.reply_text("Send product description (or type '-' to skip):")
+            await update.message.reply_text("Send product description:")
             return
         if step == "description":
-            flow['data']['description'] = None if text == "-" else text
+            if not text:
+                await update.message.reply_text("❌ Description cannot be empty. Send product description:")
+                return
+            flow['data']['description'] = text
             flow['step'] = "category"
-            await update.message.reply_text("Send product category (or type '-' to skip):")
+            await update.message.reply_text("Send product category:")
             return
         if step == "category":
-            category = None if text == "-" else text
-            data = flow['data']
-            product = create_product(
-                name=data['name'],
-                description=data.get('description'),
-                category=category
-            )
-            context.user_data.pop('admin_add_product', None)
-            await update.message.reply_text(f"✅ Product created: {product.name} (ID: {product.id})")
+            if not text:
+                await update.message.reply_text("❌ Category cannot be empty. Send product category:")
+                return
+            flow['data']['category'] = text
+            flow['step'] = "price"
+            await update.message.reply_text("Send product price (USD):")
             return
-
-    # Handle admin attach product flow
-    if context.user_data.get('admin_attach_product'):
-        if not is_admin(user_id):
-            await update.message.reply_text(get_string("unauthorized", language))
-            context.user_data.pop('admin_attach_product', None)
-            return
-
-        flow = context.user_data['admin_attach_product']
-        step = flow.get('step')
-        text = update.message.text.strip()
-
         if step == "price":
             try:
                 price = float(text)
+                if price <= 0:
+                    raise ValueError()
             except ValueError:
                 await update.message.reply_text("❌ Please send a valid price (e.g. 19.99)")
                 return
-            flow['price'] = price
+            flow['data']['price'] = price
             flow['step'] = "stock"
             await update.message.reply_text("Send stock quantity (number):")
             return
         if step == "stock":
             try:
                 stock = int(text)
+                if stock < 0:
+                    raise ValueError()
             except ValueError:
                 await update.message.reply_text("❌ Please send a valid stock number (e.g. 10)")
                 return
 
-            result = attach_product_to_supplier(
-                product_id=flow['product_id'],
-                supplier_id=flow['supplier_id'],
-                price=flow['price'],
-                stock=stock,
-                currency="USD"
-            )
-
-            context.user_data.pop('admin_attach_product', None)
-            if result:
-                await update.message.reply_text("✅ Product attached to supplier successfully")
-            else:
-                await update.message.reply_text(get_string("operation_failed", language))
+            flow['data']['stock'] = stock
+            flow['step'] = "supplier"
+            await show_new_product_supplier_select(update, context)
             return
     
     # Check if user is waiting for admin ID input

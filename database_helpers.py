@@ -98,6 +98,21 @@ def create_product(name: str, description: str = None, category: str = None) -> 
     db.close()
     return product
 
+def delete_product(product_id: int) -> bool:
+    """Delete a product and related pricing entries"""
+    db = SessionLocal()
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        db.close()
+        return False
+
+    db.query(ProductPrice).filter(ProductPrice.product_id == product_id).delete()
+    product.suppliers.clear()
+    db.delete(product)
+    db.commit()
+    db.close()
+    return True
+
 def attach_product_to_supplier(product_id: int, supplier_id: int, price: float, currency: str = "USD", stock: int = 0) -> ProductPrice:
     """Attach product to supplier with pricing"""
     db = SessionLocal()
