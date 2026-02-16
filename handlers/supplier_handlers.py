@@ -120,6 +120,14 @@ async def show_supplier_dashboard(update: Update, context: ContextTypes.DEFAULT_
 
 {supplier.company_name}
 ✅ {get_string('success', language)}
+
+{get_string("start_message", language)}
+"""
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            text=message,
+            reply_markup=reply_markup,
             parse_mode='Markdown'
         )
     else:
