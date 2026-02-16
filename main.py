@@ -116,6 +116,38 @@ class DotGPTBot:
             pattern=r"^support_"
         ))
         
+        # Sale handlers
+        self.app.add_handler(CallbackQueryHandler(
+            chat_handlers.show_sale_product_selection,
+            pattern=r"^sale_product_select_"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
+            chat_handlers.mark_sale_as_complete,
+            pattern=r"^sale_mark_"
+        ))
+        
+        # Sale verification handlers (admin)
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.show_pending_sales,
+            pattern=r"^admin_pending_sales$"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.review_sale,
+            pattern=r"^admin_review_sale_"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.approve_sale_handler,
+            pattern=r"^admin_approve_sale_"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.reject_sale_handler,
+            pattern=r"^admin_reject_sale_"
+        ))
+        
         # Superadmin handlers
         self.app.add_handler(CallbackQueryHandler(
             admin_handlers.show_superadmin_menu,

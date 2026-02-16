@@ -1,4 +1,4 @@
-from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage
+from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage, PaymentDetails, Sale, SaleProof, DeletedMessage
 from typing import List, Optional
 from sqlalchemy import and_, or_
 from datetime import datetime
@@ -643,3 +643,175 @@ def log_restock_alert(supplier_id: int, product_name: str, message: str) -> bool
     # In production, this would save to a database table or send email to admins
     # For now, just return True
     return True
+
+# ============================================================================
+# PAYMENT DETAILS HELPERS
+# ============================================================================
+
+def get_payment_details() -> List[PaymentDetails]:
+    """Get all active payment details"""
+    db = SessionLocal()
+    details = db.query(PaymentDetails).filter(PaymentDetails.is_active == True).all()
+    db.close()
+    return details
+
+def set_payment_details(payment_method: str, details: str, instructions: str = None) -> PaymentDetails:
+    """Set or update payment details"""
+    db = SessionLocal()
+    
+    # Check if this method already exists
+    existing = db.query(PaymentDetails).filter(PaymentDetails.payment_method == payment_method).first()
+    
+    if existing:
+        existing.details = details
+        existing.instructions = instructions
+        db.commit()
+        db.refresh(existing)
+        db.close()
+        return existing
+    
+    # Create new
+    payment = PaymentDetails(
+        payment_method=payment_method,
+        details=details,
+        instructions=instructions
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    db.close()
+    return payment
+
+# ============================================================================
+# SALE TRACKING & VERIFICATION HELPERS
+# ============================================================================
+
+def create_sale(chat_id: int, product_id: int, buyer_id: int, supplier_id: int, quantity: int = 1) -> Sale:
+    """Create a new sale record (initially in pending status)"""
+    db = SessionLocal()
+    sale = Sale(
+        chat_id=chat_id,
+        product_id=product_id,
+        buyer_id=buyer_id,
+        supplier_id=supplier_id,
+        quantity=quantity,
+        status="pending"
+    )
+    db.add(sale)
+    db.commit()
+    db.refresh(sale)
+    db.close()
+    return sale
+
+def submit_sale_proof(sale_id: int, file_id: str, file_type: str, file_name: str = None, caption: str = None) -> SaleProof:
+    """Submit payment proof for a sale"""
+    db = SessionLocal()
+    
+    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    if sale:
+        sale.status = "proof_submitted"
+        sale.proof_submitted_at = datetime.utcnow()
+    
+    proof = SaleProof(
+        sale_id=sale_id,
+        file_id=file_id,
+        file_type=file_type,
+        file_name=file_name,
+        caption=caption
+    )
+    db.add(proof)
+    db.commit()
+    db.refresh(proof)
+    db.close()
+    return proof
+
+def get_pending_sale_proofs() -> List[Sale]:
+    """Get all sales awaiting admin verification"""
+    db = SessionLocal()
+    sales = db.query(Sale).filter(Sale.status == "proof_submitted").all()
+    db.close()
+    return sales
+
+def approve_sale(sale_id: int, admin_id: int, notes: str = None) -> bool:
+    """Approve a sale (admin verified payment)"""
+    db = SessionLocal()
+    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    
+    if not sale:
+        db.close()
+        return False
+    
+    sale.status = "approved"
+    sale.verified_at = datetime.utcnow()
+    sale.verified_by_admin_id = admin_id
+    sale.notes = notes
+    db.commit()
+    db.close()
+    
+    # Now reduce stock
+    if sale.product_id and sale.supplier_id:
+        from database import ProductPrice
+        db = SessionLocal()
+        price_record = db.query(ProductPrice).filter(
+            and_(ProductPrice.product_id == sale.product_id, ProductPrice.supplier_id == sale.supplier_id)
+        ).first()
+        
+        if price_record and price_record.stock >= 0:
+            price_record.stock -= sale.quantity
+            db.commit()
+        
+        db.close()
+    
+    return True
+
+def reject_sale(sale_id: int, admin_id: int, notes: str = None) -> bool:
+    """Reject a sale (admin did not verify payment)"""
+    db = SessionLocal()
+    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    
+    if not sale:
+        db.close()
+        return False
+    
+    sale.status = "rejected"
+    sale.verified_at = datetime.utcnow()
+    sale.verified_by_admin_id = admin_id
+    sale.notes = notes
+    db.commit()
+    db.close()
+    
+    return True
+
+def get_sale_by_id(sale_id: int) -> Optional[Sale]:
+    """Get sale by ID"""
+    db = SessionLocal()
+    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    db.close()
+    return sale
+
+# ============================================================================
+# MESSAGE BACKUP HELPERS
+# ============================================================================
+
+def backup_deleted_message(chat_id: int, sender_id: int, sender_type: str, message: str, original_timestamp: datetime = None) -> DeletedMessage:
+    """Create a backup of a deleted message"""
+    db = SessionLocal()
+    deleted_msg = DeletedMessage(
+        chat_id=chat_id,
+        sender_id=sender_id,
+        sender_type=sender_type,
+        message=message,
+        original_timestamp=original_timestamp
+    )
+    db.add(deleted_msg)
+    db.commit()
+    db.refresh(deleted_msg)
+    db.close()
+    return deleted_msg
+
+def get_chat_deleted_messages(chat_id: int) -> List[DeletedMessage]:
+    """Get all deleted messages from a chat"""
+    db = SessionLocal()
+    messages = db.query(DeletedMessage).filter(DeletedMessage.chat_id == chat_id).all()
+    db.close()
+    return messages

@@ -10,6 +10,7 @@ from database_helpers import (
     get_or_create_chat,
     get_supplier_payment_methods,
     get_or_create_support_chat,
+    get_payment_details,
 )
 from handlers.language_selection import ensure_terms_accepted
 from config import ITEMS_PER_PAGE
@@ -190,17 +191,78 @@ async def handle_product_action(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer(get_string("unauthorized", language), show_alert=True)
             return
         
-        chat = get_or_create_chat(buyer.id, supplier_id, product_id)
-        context.user_data['current_chat'] = chat.id
+        # Store for use in next function
+        context.user_data['pending_chat_buyer_id'] = buyer.id
+        context.user_data['pending_chat_supplier_id'] = supplier_id
+        context.user_data['pending_chat_product_id'] = product_id
         
-        # Show chat message
-        supplier = get_supplier(chat.supplier_id)  # This won't work - need to refactor
-        await query.edit_message_text(
-            text=f"{get_string('chat_with_supplier', language)}\n\n💬 {chat.id}",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(get_string("back", language), callback_data="buyer_browse")]
-            ])
-        )
+        # Show payment details first
+        await show_payment_details_before_chat(update, context, language)
+
+async def show_payment_details_before_chat(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
+    """Show payment details and warning before opening chat"""
+    query = update.callback_query
+    
+    # Get payment details
+    payment_details = get_payment_details()
+    
+    if not payment_details:
+        # No payment details configured, proceed to chat
+        await proceed_to_chat(update, context, language)
+        await query.answer()
+        return
+    
+    message = f"""
+{get_string('payment_details', language)}
+
+{get_string('payment_warning', language)}
+
+"""
+    
+    for payment in payment_details:
+        message += f"\n💳 *{payment.payment_method}*\n"
+        message += f"```\n{payment.details}\n```\n"
+        if payment.instructions:
+            message += f"\n📝 {get_string('payment_instructions', language)}:\n{payment.instructions}\n"
+    
+    message += f"\n\n{get_string('message_backup', language)}"
+    
+    buttons = [
+        [InlineKeyboardButton("✅ Continue to Chat", callback_data="proceed_to_chat")],
+        [InlineKeyboardButton(get_string("back", language), callback_data="buyer_browse")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def proceed_to_chat(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
+    """Actually open the chat after payment details were shown"""
+    query = update.callback_query
+    
+    buyer_id = context.user_data.get('pending_chat_buyer_id')
+    supplier_id = context.user_data.get('pending_chat_supplier_id')
+    product_id = context.user_data.get('pending_chat_product_id')
+    
+    if not buyer_id or not supplier_id:
+        await query.answer(get_string("error", language), show_alert=True)
+        return
+    
+    # Create chat
+    chat = get_or_create_chat(buyer_id, supplier_id, product_id)
+    context.user_data['current_chat'] = chat.id
+    
+    # Show chat message
+    await query.edit_message_text(
+        text=f"{get_string('chat_with_supplier', language)}\n\n💬 Chat #{chat.id}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_string("back", language), callback_data="buyer_browse")]
+        ])
+    )
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle pagination"""
@@ -264,6 +326,11 @@ async def handle_buyer_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle buyer menu actions"""
     query = update.callback_query
     language = context.user_data.get('language', 'en')
+
+    if query.data == "proceed_to_chat":
+        await proceed_to_chat(update, context, language)
+        await query.answer()
+        return
 
     action = query.data.split("_")[1]
 

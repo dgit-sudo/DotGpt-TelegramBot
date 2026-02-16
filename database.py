@@ -226,6 +226,86 @@ class AdminUser(Base):
         role = "SuperAdmin" if self.is_superadmin else "Admin"
         return f"<AdminUser(id={self.telegram_id}, {role})>"
 
+class PaymentDetails(Base):
+    """Global payment details for the platform"""
+    __tablename__ = "payment_details"
+    
+    id = Column(Integer, primary_key=True)
+    payment_method = Column(String(100), nullable=False)  # e.g., "Bank Transfer", "Crypto", etc.
+    details = Column(Text, nullable=False)  # Full payment info (account, address, etc.)
+    instructions = Column(Text)  # How to make payment
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<PaymentDetails(method={self.payment_method})>"
+
+class Sale(Base):
+    """Track individual sales and their verification status"""
+    __tablename__ = "sales"
+    
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, ForeignKey('chats.id', ondelete='CASCADE'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id', ondelete='SET NULL'))
+    buyer_id = Column(Integer, ForeignKey('buyers.id', ondelete='CASCADE'), nullable=False)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id', ondelete='CASCADE'), nullable=False)
+    status = Column(String(20), default="pending")  # pending, proof_submitted, approved, rejected
+    # pending -> seller submits proof -> proof_submitted -> admin reviews -> approved/rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+    proof_submitted_at = Column(DateTime)  # When seller submitted payment proof
+    verified_at = Column(DateTime)  # When admin verified the sale
+    verified_by_admin_id = Column(Integer)  # Which admin verified
+    quantity = Column(Integer, default=1)
+    notes = Column(Text)  # Admin notes on approval/rejection
+    
+    # Relationships
+    chat = relationship("Chat")
+    product = relationship("Product")
+    buyer = relationship("Buyer")
+    supplier = relationship("Supplier")
+    proof = relationship("SaleProof", back_populates="sale", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Sale(id={self.id}, status={self.status}, buyer={self.buyer_id}, supplier={self.supplier_id})>"
+
+class SaleProof(Base):
+    """Payment proof submitted by seller for a sale"""
+    __tablename__ = "sale_proofs"
+    
+    id = Column(Integer, primary_key=True)
+    sale_id = Column(Integer, ForeignKey('sales.id', ondelete='CASCADE'), nullable=False)
+    file_id = Column(String(500))  # Telegram file_id for the proof file
+    file_type = Column(String(50))  # photo, document, video, etc.
+    file_name = Column(String(255))
+    caption = Column(Text)  # Seller's description of the proof
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    sale = relationship("Sale", back_populates="proof")
+    
+    def __repr__(self):
+        return f"<SaleProof(sale={self.sale_id}, type={self.file_type})>"
+
+class DeletedMessage(Base):
+    """Backup of deleted messages from chats"""
+    __tablename__ = "deleted_messages"
+    
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, ForeignKey('chats.id', ondelete='CASCADE'), nullable=False)
+    original_message_id = Column(Integer)  # Telegram message ID if tracked
+    sender_id = Column(Integer, nullable=False)
+    sender_type = Column(String(20), nullable=False)  # "buyer" or "supplier"
+    message = Column(Text, nullable=False)
+    deleted_at = Column(DateTime, default=datetime.utcnow)
+    original_timestamp = Column(DateTime)  # When message was originally sent
+    
+    # Relationships
+    chat = relationship("Chat")
+    
+    def __repr__(self):
+        return f"<DeletedMessage(chat={self.chat_id}, deleted_at={self.deleted_at})>"
+
 
 def init_db():
     """Initialize database tables"""

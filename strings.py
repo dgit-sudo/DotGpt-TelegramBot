@@ -134,6 +134,31 @@ STRINGS = {
         "identity_disallowed": "❌ Do not share personal contact details or identity. Please keep all communication here.",
         "media_disallowed": "❌ File sharing is not allowed in private chats. Please send text only.",
         
+        # Payment & Sale Verification
+        "payment_details": "💳 Payment Details",
+        "payment_warning": "⚠️ WARNING: Pay ONLY to the details below. Do not send money to any other account!",
+        "payment_method": "Payment Method",
+        "payment_instructions": "Instructions",
+        "submit_proof": "📸 Submit Payment Proof",
+        "upload_payment_proof": "Upload screenshot or proof of payment (image, PDF, etc.)",
+        "proof_submitted": "✅ Payment proof submitted to admin for verification",
+        "proof_caption": "Add any description (optional)",
+        "pending_verification": "⏳ Awaiting admin verification of payment proof",
+        "sale_verified": "✅ Sale verified! Stock reduced and payment confirmed.",
+        "sale_rejected": "❌ Sale rejected. Payment proof not verified.",
+        "message_backup": "📝 Note: All chat messages are recorded and backed up for security.",
+        
+        # Admin Sale Review
+        "pending_sales": "📋 Pending Sales for Review",
+        "review_sale": "👁️ Review Sale",
+        "approve_sale": "✅ Approve Sale",
+        "reject_sale": "❌ Reject Sale",
+        "sale_status": "Sale Status",
+        "buyer": "Buyer",
+        "seller": "Seller",
+        "product": "Product",
+        "no_pending_sales": "No sales pending for verification",
+        
         # Pagination
         "page": "Page",
         "of": "of",

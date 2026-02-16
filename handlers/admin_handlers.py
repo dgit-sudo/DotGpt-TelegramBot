@@ -25,6 +25,10 @@ from database_helpers import (
     get_verified_suppliers,
     get_out_of_stock_suppliers,
     update_product_stock,
+    get_pending_sale_proofs,
+    get_sale_by_id,
+    approve_sale,
+    reject_sale,
 )
 from config import ADMIN_IDS
 import logging
@@ -61,6 +65,7 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE, l
         [InlineKeyboardButton(get_string("manage_users", language), callback_data="admin_manage_users")],
         [InlineKeyboardButton(get_string("manage_suppliers_admin", language), callback_data="admin_suppliers")],
         [InlineKeyboardButton(get_string("manage_products_admin", language), callback_data="admin_manage_products")],
+        [InlineKeyboardButton("🔍 " + get_string("pending_sales", language), callback_data="admin_pending_sales")],
         [InlineKeyboardButton(get_string("support", language), callback_data="admin_support_chats")],
         [InlineKeyboardButton(get_string("system_stats", language), callback_data="admin_stats")],
     ])
@@ -240,12 +245,23 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif action == "delete" and action_parts[2] == "confirm":
         product_id = int(action_parts[3])
         await delete_product_and_refresh(update, context, product_id)
+    elif action == "pending" and action_parts[2] == "sales":
+        await show_pending_sales(update, context, language)
+    elif action == "review" and action_parts[2] == "sale":
+        sale_id = int(action_parts[3])
+        await review_sale(update, context, sale_id, language)
+    elif action == "approve" and action_parts[2] == "sale":
+        sale_id = int(action_parts[3])
+        await approve_sale_handler(update, context, sale_id, user_id, language)
+    elif action == "reject" and action_parts[2] == "sale":
+        sale_id = int(action_parts[3])
+        await reject_sale_handler(update, context, sale_id, user_id, language)
     elif action == "verify":
         supplier_id = int(action_parts[2])
         verify_supplier(supplier_id)
         await query.answer(get_string("success", language), show_alert=True)
         await show_suppliers_management(update, context)
-    elif action == "reject":
+    elif action == "reject" and len(action_parts) == 3:
         supplier_id = int(action_parts[2])
         reject_supplier(supplier_id)
         await query.answer("❌ Supplier rejected and banned", show_alert=True)
@@ -1030,3 +1046,163 @@ The user will become an admin when they next interact with the bot.
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+
+# ============================================================================
+# SALE VERIFICATION HANDLERS
+# ============================================================================
+
+async def show_pending_sales(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show list of pending sales awaiting verification"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    if not is_admin(user_id):
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Get pending sales
+    pending_sales = get_pending_sale_proofs()
+    
+    if not pending_sales:
+        message = get_string("no_pending_sales", language)
+        buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        
+        await query.edit_message_text(
+            text=message,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return
+    
+    message = f"📋 {get_string('pending_sales', language)}\n\n"
+    message += f"Found {len(pending_sales)} sales awaiting verification:\n\n"
+    
+    buttons = []
+    for sale in pending_sales:
+        buyer_name = sale.buyer.first_name or "Anonymous Buyer"
+        supplier_name = sale.supplier.company_name if sale.supplier else "Unknown"
+        product_name = sale.product.name if sale.product else "Unknown Product"
+        
+        message += f"📌 Sale #{sale.id}\n"
+        message += f"  Buyer: {buyer_name}\n"
+        message += f"  Seller: {supplier_name}\n"
+        message += f"  Product: {product_name}\n"
+        message += f"  Status: {sale.status}\n\n"
+        
+        buttons.append([
+            InlineKeyboardButton(f"Review Sale #{sale.id}", callback_data=f"admin_review_sale_{sale.id}")
+        ])
+    
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def review_sale(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Review a specific sale with payment proof"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    if not is_admin(user_id):
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Extract sale_id from callback data: admin_review_sale_{sale_id}
+    sale_id = int(query.data.split("_")[-1])
+    
+    sale = get_sale_by_id(sale_id)
+    if not sale:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+    
+    message = f"""
+👁️ {get_string('review_sale', language)}
+
+{get_string('sale_status', language)}: {sale.status}
+{get_string('buyer', language)}: {sale.buyer.first_name or 'Anonymous'}
+{get_string('seller', language)}: {sale.supplier.company_name}
+{get_string('product', language)}: {sale.product.name if sale.product else 'Unknown'}
+Quantity: {sale.quantity}
+
+📸 Payment Proof:
+"""
+    
+    if sale.proof:
+        for proof in sale.proof:
+            message += f"\nType: {proof.file_type}\n"
+            if proof.caption:
+                message += f"Description: {proof.caption}\n"
+    else:
+        message += "\n(No proof attached)"
+    
+    # Store sale ID for approval/rejection
+    context.user_data['reviewing_sale_id'] = sale_id
+    
+    buttons = [
+        [InlineKeyboardButton(get_string("approve_sale", language), callback_data=f"admin_approve_sale_{sale_id}")],
+        [InlineKeyboardButton(get_string("reject_sale", language), callback_data=f"admin_reject_sale_{sale_id}")],
+        [InlineKeyboardButton(get_string("back", language), callback_data="admin_pending_sales")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await query.edit_message_text(
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def approve_sale_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Approve a sale (reduce stock and mark as verified)"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    if not is_admin(user_id):
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Extract sale_id from callback data: admin_approve_sale_{sale_id}
+    sale_id = int(query.data.split("_")[-1])
+    
+    # Approve sale (this also reduces stock if tracked)
+    success = approve_sale(sale_id, user_id)
+    
+    if success:
+        await query.answer(get_string("sale_verified", language), show_alert=True)
+    else:
+        await query.answer(get_string("error", language), show_alert=True)
+    
+    # Show pending sales again
+    await show_pending_sales(update, context)
+
+async def reject_sale_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reject a sale (mark as rejected, do not reduce stock)"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    if not is_admin(user_id):
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+    
+    # Extract sale_id from callback data: admin_reject_sale_{sale_id}
+    sale_id = int(query.data.split("_")[-1])
+    
+    # Reject sale
+    success = reject_sale(sale_id, user_id)
+    
+    if success:
+        await query.answer(get_string("sale_rejected", language), show_alert=True)
+    else:
+        await query.answer(get_string("error", language), show_alert=True)
+    
+    # Show pending sales again
+    await show_pending_sales(update, context)

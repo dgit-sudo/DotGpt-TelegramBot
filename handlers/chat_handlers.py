@@ -13,7 +13,10 @@ from database_helpers import (
     save_support_message,
     get_all_support_chats,
     get_support_chats_for_buyer,
-    is_admin
+    is_admin,
+    create_sale,
+    submit_sale_proof,
+    get_products_by_supplier,
 )
 from sqlalchemy import and_
 import logging
@@ -48,10 +51,54 @@ def has_media(message) -> bool:
     ])
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text messages"""
+    """Handle text messages and file uploads"""
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
     chat_type = context.user_data.get('current_chat_type', 'supplier')
+    
+    # Check if there's a pending sale waiting for proof
+    pending_sale_id = context.user_data.get('pending_sale_id')
+    if pending_sale_id and update.message:
+        # Check if file was uploaded
+        if update.message.photo:
+            # Photo uploaded
+            file_id = update.message.photo[-1].file_id  # Get best quality
+            file_type = "photo"
+            caption = update.message.caption or ""
+            
+            # Submit proof
+            submit_sale_proof(pending_sale_id, file_id, file_type, caption=caption)
+            context.user_data['pending_sale_id'] = None
+            
+            await update.message.reply_text(get_string("proof_submitted", language))
+            return
+        
+        elif update.message.document:
+            # Document uploaded
+            file_id = update.message.document.file_id
+            file_type = "document"
+            file_name = update.message.document.file_name
+            caption = update.message.caption or ""
+            
+            # Submit proof
+            submit_sale_proof(pending_sale_id, file_id, file_type, file_name, caption)
+            context.user_data['pending_sale_id'] = None
+            
+            await update.message.reply_text(get_string("proof_submitted", language))
+            return
+        
+        elif update.message.video:
+            # Video uploaded
+            file_id = update.message.video.file_id
+            file_type = "video"
+            caption = update.message.caption or ""
+            
+            # Submit proof
+            submit_sale_proof(pending_sale_id, file_id, file_type, caption=caption)
+            context.user_data['pending_sale_id'] = None
+            
+            await update.message.reply_text(get_string("proof_submitted", language))
+            return
     
     # Check if user is in a chat
     current_chat_id = context.user_data.get('current_chat')
@@ -428,11 +475,14 @@ async def show_buyer_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await query.answer()
 
-async def show_sale_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+async def show_sale_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show product selection for marking a sale"""
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
     query = update.callback_query
+    
+    # Extract chat_id from callback data: sale_product_select_{chat_id}
+    chat_id = int(query.data.split("_")[-1])
     
     supplier = get_supplier(user_id)
     if not supplier:
@@ -467,55 +517,51 @@ async def show_sale_product_selection(update: Update, context: ContextTypes.DEFA
     )
     await query.answer()
 
-async def mark_sale_as_complete(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int, product_id: int):
-    """Mark a sale as complete and reduce stock"""
+async def mark_sale_as_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Create a sale record requiring payment proof (not immediately reducing stock)"""
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
     query = update.callback_query
+    
+    # Extract chat_id and product_id from callback data: sale_mark_{chat_id}_{product_id}
+    parts = query.data.split("_")
+    chat_id = int(parts[2])
+    product_id = int(parts[3])
     
     supplier = get_supplier(user_id)
     if not supplier:
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
     
-    # Reduce stock by 1
-    from database_helpers import update_product_stock
-    from database import SessionLocal, ProductPrice
-    
-    db = SessionLocal()
-    price_record = db.query(ProductPrice).filter(
-        and_(
-            ProductPrice.product_id == product_id,
-            ProductPrice.supplier_id == supplier.id
-        )
-    ).first()
-    
-    if not price_record:
-        db.close()
+    # Get chat to find buyer
+    chat = get_chat(chat_id)
+    if not chat:
         await query.answer(get_string("not_found", language), show_alert=True)
         return
     
-    # Get current stock
-    current_stock = price_record.stock
+    # Create sale record (with pending status)
+    sale = create_sale(
+        chat_id=chat_id,
+        product_id=product_id,
+        buyer_id=chat.buyer_id,
+        supplier_id=supplier.id,
+        quantity=1
+    )
     
-    # Reduce by 1 (only if stock > 0 or if stock is being tracked)
-    if current_stock < 0:
-        # Stock not being tracked, just mark as done without changing stock
-        message = f"✅ {get_string('sale_completed', language)}!\n\n"
-        message += f"Product: {price_record.product.name}\n"
-        message += f"Stock tracking: Not tracked"
-    else:
-        # Reduce stock by 1
-        price_record.stock = current_stock - 1
-        db.commit()
-        
-        message = f"✅ {get_string('sale_completed', language)}!\n\n"
-        message += f"Product: {price_record.product.name}\n"
-        message += f"Stock remaining: {price_record.stock}"
+    # Store sale ID for next step
+    context.user_data['pending_sale_id'] = sale.id
+    context.user_data['pending_sale_product_id'] = product_id
+    context.user_data['pending_sale_chat_id'] = chat_id
     
-    db.close()
+    # Now ask for proof
+    message = f"""
+📸 {get_string('submit_proof', language)}
+
+{get_string('proof_submitted', language)}
+
+{get_string('upload_payment_proof', language)}
+"""
     
-    # Show confirmation
     buttons = [[InlineKeyboardButton(get_string("back", language), callback_data=f"chat_open_{chat_id}")]]
     reply_markup = InlineKeyboardMarkup(buttons)
     
@@ -524,7 +570,10 @@ async def mark_sale_as_complete(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
-    await query.answer(get_string("stock_reduced", language), show_alert=False)
+    await query.answer()
+    
+    # Now we need to wait for file upload in handle_message
+
 
 async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle chat-related actions"""
