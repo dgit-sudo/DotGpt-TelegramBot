@@ -62,7 +62,8 @@ class Supplier(Base):
     company_name = Column(String(255), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
-    verified = Column(Boolean, default=False)
+    status = Column(String(20), default="pending")  # pending, verified, rejected
+    is_banned = Column(Boolean, default=False)  # True if rejected or banned
     active = Column(Boolean, default=True)
     language = Column(String(10), default="en")
     
@@ -73,7 +74,7 @@ class Supplier(Base):
     payment_methods = relationship("SupplierPaymentMethod", back_populates="supplier", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Supplier(id={self.id}, company_name={self.company_name})>"
+        return f"<Supplier(id={self.id}, company_name={self.company_name}, status={self.status})>"
 
 class Buyer(Base):
     """Buyer model"""

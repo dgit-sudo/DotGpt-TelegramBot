@@ -137,7 +137,7 @@ async def show_product_details(update: Update, context: ContextTypes.DEFAULT_TYP
     buttons = []
     for price in prices:
         supplier = price.supplier
-        if supplier and supplier.verified and supplier.active:
+        if supplier and supplier.status == "verified" and not supplier.is_banned and supplier.active:
             message += f"\n🏪 {supplier.company_name}"
             message += f"\n   💰 {price.price} {price.currency}"
             message += f"\n   📦 {get_string('stock', language) if 'stock' in dir() else 'Stock'}: {price.stock}\n"

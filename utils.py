@@ -29,7 +29,7 @@ Category: {product.category or 'Uncategorized'}
 
 def create_supplier_message(supplier, language: str = "en") -> str:
     """Create formatted supplier display message"""
-    verify_status = "✅ Verified" if supplier.verified else "⏳ Pending Verification"
+    verify_status = "✅ Verified" if supplier.status == "verified" else ("⏳ Pending" if supplier.status == "pending" else "❌ Rejected")
     
     message = f"""
 🏪 {supplier.company_name}

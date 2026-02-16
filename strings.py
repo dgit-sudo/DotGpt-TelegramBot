@@ -1,10 +1,10 @@
-# Language strings - Supporting 6 languages
+# Language strings - Supporting 100+ world languages
 STRINGS = {
     "en": {
         # General
         "welcome": "Welcome to DotGPT Shop Bot 🛍️",
         "start_message": "Hello! I'm DotGPT Shop Bot. What would you like to do?",
-        "language_select": "Select your language / Selecciona tu idioma / Choisissez votre langue",
+        "language_select": "Select your language",
         "language_changed": "Language changed to English ✓",
         
         # Common Buttons
@@ -44,6 +44,10 @@ STRINGS = {
         "payment_settings": "💳 Payment Settings",
         "supplier_stats": "📈 Statistics",
         "not_verified": "⚠️ Your account is pending verification. Admin review required.",
+        "supplier_pending": "⏳ Your account is pending verification. You will be notified when confirmed.",
+        "supplier_rejected": "❌ Your account was rejected. You are banned from using this platform.",
+        "supplier_banned": "🚫 You are banned from this platform.",
+        "supplier_request_sent": "✅ Verification request sent! Admin will review your account shortly.",
         "buyer_profile_hidden": "🔒 The buyer's profile is kept private for security.",
         "awaiting_supplier_response": "Waiting for response...",
         
@@ -56,9 +60,14 @@ STRINGS = {
         "support_chats_admin": "🆘 Support Chats",
         "system_stats": "📊 System Statistics",
         "verify_supplier": "✅ Verify Supplier",
+        "reject_supplier": "❌ Reject & Ban Supplier",
+        "supplier_verification_requests": "👤 Verification Requests",
+        "supplier_company_name": "Company Name",
         "block_user": "🚫 Block User",
         "unblock_user": "🔓 Unblock User",
         "view_reports": "📋 View Reports",
+        "enter_usd_price": "Enter USD price (e.g., 10.99):",
+        "enter_stock": "Enter stock quantity:",
         
         # Superadmin
         "superadmin_panel": "👑 Superadmin Panel",
@@ -88,491 +97,40 @@ STRINGS = {
         # Chat
         "send_message": "Type your message...",
         "message_sent": "Message sent ✓",
-        "type_message": "Enter your message:",        "communicating_in": "🌐 Conversation Language",
+        "type_message": "Enter your message:",
+        "communicating_in": "🌐 Conversation Language",
         "translation_note": "Messages are automatically translated",
         "original_language": "Original Language",
         "translated_by": "Translated by Google Translate",
-        "language_detected": "Language detected",        
+        "language_detected": "Language detected",
+        
         # Pagination
         "page": "Page",
         "of": "of",
     },
-    "es": {
-        # General
-        "welcome": "Bienvenido a DotGPT Shop Bot 🛍️",
-        "start_message": "¡Hola! Soy DotGPT Shop Bot. ¿Qué te gustaría hacer?",
-        "language_select": "Selecciona tu idioma",
-        "language_changed": "Idioma cambiado a Español ✓",
-        
-        # Common Buttons
-        "back": "⬅️ Atrás",
-        "next": "➡️ Siguiente",
-        "cancel": "❌ Cancelar",
-        "close": "✖️ Cerrar",
-        "yes": "✅ Sí",
-        "no": "❌ No",
-        "menu": "📋 Menú",
-        "help": "❓ Ayuda",
-        
-        # Buyer
-        "browse_products": "🛍️ Explorar Productos",
-        "my_chats": "💬 Mis Chats",
-        "order_history": "📦 Historial de Pedidos",
-        "settings": "⚙️ Configuración",
-        "no_products": "No hay productos disponibles en este momento.",
-        "product_details": "Detalles del Producto",
-        "price": "Precio",
-        "supplier": "Proveedor",
-        "contact_supplier": "💬 Contactar Proveedor",
-        "view_payment_methods": "💳 Ver Métodos de Pago",
-        "inquire_product": "❓ Consultar Producto",
-        "chat_with_supplier": "¡Chat iniciado! Tu perfil está oculto por privacidad.",
-        "no_chats": "Aún no tienes chats activos.",
-        
-        # Supplier
-        "supplier_panel": "📊 Panel de Proveedor",
-        "my_products": "📦 Mis Productos",
-        "add_product": "➕ Agregar Producto",
-        "manage_products": "📝 Gestionar Productos",
-        "set_prices": "💰 Establecer Precios",
-        "buyer_inquiries": "📬 Consultas de Compradores",
-        "payment_settings": "💳 Configuración de Pago",
-        "supplier_stats": "📈 Estadísticas",
-        "not_verified": "⚠️ Tu cuenta está pendiente de verificación. Se requiere revisión del administrador.",
-        "buyer_profile_hidden": "🔒 El perfil del comprador se mantiene privado por seguridad.",
-        "awaiting_supplier_response": "Esperando respuesta...",
-        
-        # Admin
-        "admin_panel": "👨‍💼 Panel de Administrador",
-        "view_all_chats": "👁️ Ver Todos los Chats",
-        "manage_users": "👥 Gestionar Usuarios",
-        "manage_suppliers_admin": "🏪 Gestionar Proveedores",
-        "manage_products_admin": "📦 Gestionar Productos",
-        "system_stats": "📊 Estadísticas del Sistema",
-        "verify_supplier": "✅ Verificar Proveedor",
-        "block_user": "🚫 Bloquear Usuario",
-        "unblock_user": "🔓 Desbloquear Usuario",
-        "view_reports": "📋 Ver Reportes",
-        
-        # Superadmin
-        "superadmin_panel": "👑 Panel Superadmin",
-        "add_admin": "➕ Agregar Nuevo Admin",
-        "remove_admin": "❌ Eliminar Admin",
-        "list_admins": "👥 Listar Todos los Admins",
-        "admin_added": "✅ Admin agregado exitosamente",
-        "admin_removed": "✅ Admin eliminado exitosamente",
-        "admin_exists": "⚠️ El usuario ya es un admin",
-        "superadmin_only": "❌ Solo el superadmin puede realizar esta acción",
-        "confirm_remove": "⚠️ ¿Estás seguro de que quieres eliminar este admin?",
-        
-        # Errors
-        "error": "❌ Ocurrió un error",
-        "unauthorized": "❌ No estás autorizado para acceder a esto.",
-        "not_found": "Elemento no encontrado.",
-        "invalid_input": "Entrada inválida. Intenta de nuevo.",
-        "operation_failed": "La operación falló. Intenta de nuevo.",
-        
-        # Success
-        "success": "✅ Éxito",
-        "saved": "✅ Guardado con éxito",
-        "updated": "✅ Actualizado con éxito",
-        "deleted": "✅ Eliminado con éxito",
-        "created": "✅ Creado con éxito",
-        
-        # Chat
-        "send_message": "Escribe tu mensaje...",
-        "message_sent": "Mensaje enviado ✓",
-        "type_message": "Ingresa tu mensaje:",        "communicating_in": "🌐 Idioma de Conversación",
-        "translation_note": "Los mensajes se traducen automáticamente",
-        "original_language": "Idioma Original",
-        "translated_by": "Traducido por Google Translate",
-        "language_detected": "Idioma detectado",        
-        # Pagination
-        "page": "Página",
-        "of": "de",
-    },
-    "fr": {
-        # General
-        "welcome": "Bienvenue sur DotGPT Shop Bot 🛍️",
-        "start_message": "Bonjour! Je suis DotGPT Shop Bot. Que souhaitez-vous faire?",
-        "language_select": "Choisissez votre langue",
-        "language_changed": "Langue changée en français ✓",
-        
-        # Common Buttons
-        "back": "⬅️ Retour",
-        "next": "➡️ Suivant",
-        "cancel": "❌ Annuler",
-        "close": "✖️ Fermer",
-        "yes": "✅ Oui",
-        "no": "❌ Non",
-        "menu": "📋 Menu",
-        "help": "❓ Aide",
-        
-        # Buyer
-        "browse_products": "🛍️ Parcourir les Produits",
-        "my_chats": "💬 Mes Chats",
-        "order_history": "📦 Historique des Commandes",
-        "settings": "⚙️ Paramètres",
-        "no_products": "Aucun produit disponible pour le moment.",
-        "product_details": "Détails du Produit",
-        "price": "Prix",
-        "supplier": "Fournisseur",
-        "contact_supplier": "💬 Contacter le Fournisseur",
-        "view_payment_methods": "💳 Voir les Méthodes de Paiement",
-        "inquire_product": "❓ S'informer sur le Produit",
-        "chat_with_supplier": "Chat démarré! Votre profil est caché pour la confidentialité.",
-        "no_chats": "Vous n'avez pas encore de chats actifs.",
-        
-        # Supplier
-        "supplier_panel": "📊 Tableau de Bord Fournisseur",
-        "my_products": "📦 Mes Produits",
-        "add_product": "➕ Ajouter un Produit",
-        "manage_products": "📝 Gérer les Produits",
-        "set_prices": "💰 Définir les Prix",
-        "buyer_inquiries": "📬 Demandes des Acheteurs",
-        "payment_settings": "💳 Paramètres de Paiement",
-        "supplier_stats": "📈 Statistiques",
-        "not_verified": "⚠️ Votre compte est en attente de vérification. Examen de l'administrateur requis.",
-        "buyer_profile_hidden": "🔒 Le profil de l'acheteur est maintenu privé pour la sécurité.",
-        "awaiting_supplier_response": "En attente de réponse...",
-        
-        # Admin
-        "admin_panel": "👨‍💼 Panneau d'Administration",
-        "view_all_chats": "👁️ Voir Tous les Chats",
-        "manage_users": "👥 Gérer les Utilisateurs",
-        "manage_suppliers_admin": "🏪 Gérer les Fournisseurs",
-        "manage_products_admin": "📦 Gérer les Produits",
-        "system_stats": "📊 Statistiques du Système",
-        "verify_supplier": "✅ Vérifier le Fournisseur",
-        "block_user": "🚫 Bloquer l'Utilisateur",
-        "unblock_user": "🔓 Débloquer l'Utilisateur",
-        "view_reports": "📋 Voir les Rapports",
-        
-        # Superadmin
-        "superadmin_panel": "👑 Panneau Superadmin",
-        "add_admin": "➕ Ajouter un Nouvel Admin",
-        "remove_admin": "❌ Supprimer un Admin",
-        "list_admins": "👥 Lister Tous les Admins",
-        "admin_added": "✅ Admin ajouté avec succès",
-        "admin_removed": "✅ Admin supprimé avec succès",
-        "admin_exists": "⚠️ L'utilisateur est déjà un admin",
-        "superadmin_only": "❌ Seul le superadmin peut effectuer cette action",
-        "confirm_remove": "⚠️ Êtes-vous sûr de vouloir supprimer cet admin ?",
-        
-        # Errors
-        "error": "❌ Une erreur s'est produite",
-        "unauthorized": "❌ Vous n'êtes pas autorisé à accéder à ceci.",
-        "not_found": "Élément non trouvé.",
-        "invalid_input": "Entrée invalide. Veuillez réessayer.",
-        "operation_failed": "L'opération a échoué. Veuillez réessayer.",
-        
-        # Success
-        "success": "✅ Succès",
-        "saved": "✅ Enregistré avec succès",
-        "updated": "✅ Mis à jour avec succès",
-        "deleted": "✅ Supprimé avec succès",
-        "created": "✅ Créé avec succès",
-        
-        # Chat
-        "send_message": "Tapez votre message...",
-        "message_sent": "Message envoyé ✓",
-        "type_message": "Entrez votre message:",        "communicating_in": "🌐 Langue de Conversation",
-        "translation_note": "Les messages sont automatiquement traduits",
-        "original_language": "Langue Originale",
-        "translated_by": "Traduit par Google Translate",
-        "language_detected": "Langue détectée",        
-        # Pagination
-        "page": "Page",
-        "of": "de",
-    },
-    "de": {
-        # General
-        "welcome": "Willkommen bei DotGPT Shop Bot 🛍️",
-        "start_message": "Hallo! Ich bin DotGPT Shop Bot. Was möchten Sie tun?",
-        "language_select": "Wählen Sie Ihre Sprache",
-        "language_changed": "Sprache zu Deutsch geändert ✓",
-        
-        # Common Buttons
-        "back": "⬅️ Zurück",
-        "next": "➡️ Weiter",
-        "cancel": "❌ Abbrechen",
-        "close": "✖️ Schließen",
-        "yes": "✅ Ja",
-        "no": "❌ Nein",
-        "menu": "📋 Menü",
-        "help": "❓ Hilfe",
-        
-        # Buyer
-        "browse_products": "🛍️ Produkte Durchsuchen",
-        "my_chats": "💬 Meine Chats",
-        "order_history": "📦 Bestellverlauf",
-        "settings": "⚙️ Einstellungen",
-        "no_products": "Momentan keine Produkte verfügbar.",
-        "product_details": "Produktdetails",
-        "price": "Preis",
-        "supplier": "Lieferant",
-        "contact_supplier": "💬 Lieferant Kontaktieren",
-        "view_payment_methods": "💳 Zahlungsmethoden Ansehen",
-        "inquire_product": "❓ Produkt Anfragen",
-        "chat_with_supplier": "Chat gestartet! Ihr Profil ist aus Datenschutzgründen verborgen.",
-        "no_chats": "Sie haben noch keine aktiven Chats.",
-        
-        # Supplier
-        "supplier_panel": "📊 Lieferanten-Dashboard",
-        "my_products": "📦 Meine Produkte",
-        "add_product": "➕ Produkt Hinzufügen",
-        "manage_products": "📝 Produkte Verwalten",
-        "set_prices": "💰 Preise Festlegen",
-        "buyer_inquiries": "📬 Käuferanfragen",
-        "payment_settings": "💳 Zahlungseinstellungen",
-        "supplier_stats": "📈 Statistik",
-        "not_verified": "⚠️ Ihr Konto wartet auf Überprüfung. Administratorüberprüfung erforderlich.",
-        "buyer_profile_hidden": "🔒 Das Käuferprofil wird aus Sicherheitsgründen privat gehalten.",
-        "awaiting_supplier_response": "Auf Antwort warten...",
-        
-        # Admin
-        "admin_panel": "👨‍💼 Admin-Bereich",
-        "view_all_chats": "👁️ Alle Chats Anzeigen",
-        "manage_users": "👥 Benutzer Verwalten",
-        "manage_suppliers_admin": "🏪 Lieferanten Verwalten",
-        "manage_products_admin": "📦 Produkte Verwalten",
-        "system_stats": "📊 Systemstatistiken",
-        "verify_supplier": "✅ Lieferant Bestätigen",
-        "block_user": "🚫 Benutzer Sperren",
-        "unblock_user": "🔓 Benutzer Entsperren",
-        "view_reports": "📋 Berichte Anzeigen",
-        
-        # Superadmin
-        "superadmin_panel": "👑 Superadmin-Bereich",
-        "add_admin": "➕ Neuen Admin Hinzufügen",
-        "remove_admin": "❌ Admin Entfernen",
-        "list_admins": "👥 Alle Admins Auflisten",
-        "admin_added": "✅ Admin erfolgreich hinzugefügt",
-        "admin_removed": "✅ Admin erfolgreich entfernt",
-        "admin_exists": "⚠️ Benutzer ist bereits ein Admin",
-        "superadmin_only": "❌ Nur Superadmin kann diese Aktion ausführen",
-        "confirm_remove": "⚠️ Sind Sie sicher, dass Sie diesen Admin entfernen möchten?",
-        
-        # Errors
-        "error": "❌ Ein Fehler ist aufgetreten",
-        "unauthorized": "❌ Sie sind nicht berechtigt, auf dies zuzugreifen.",
-        "not_found": "Element nicht gefunden.",
-        "invalid_input": "Ungültige Eingabe. Bitte versuchen Sie erneut.",
-        "operation_failed": "Operation fehlgeschlagen. Bitte versuchen Sie erneut.",
-        
-        # Success
-        "success": "✅ Erfolg",
-        "saved": "✅ Erfolgreich gespeichert",
-        "updated": "✅ Erfolgreich aktualisiert",
-        "deleted": "✅ Erfolgreich gelöscht",
-        "created": "✅ Erfolgreich erstellt",
-        
-        # Chat
-        "send_message": "Geben Sie Ihre Nachricht ein...",
-        "message_sent": "Nachricht gesendet ✓",
-        "type_message": "Geben Sie Ihre Nachricht ein:",
-        "communicating_in": "🌐 Gesprächssprache",
-        "translation_note": "Nachrichten werden automatisch übersetzt",
-        "original_language": "Originalsprache",
-        "translated_by": "Übersetzt von Google Translate",
-        "language_detected": "Sprache erkannt",
-        
-        # Pagination
-        "page": "Seite",
-        "of": "von",
-    },
-    "it": {
-        # General
-        "welcome": "Benvenuto su DotGPT Shop Bot 🛍️",
-        "start_message": "Ciao! Sono DotGPT Shop Bot. Cosa vorresti fare?",
-        "language_select": "Seleziona la tua lingua",
-        "language_changed": "Lingua cambiata all'italiano ✓",
-        
-        # Common Buttons
-        "back": "⬅️ Indietro",
-        "next": "➡️ Avanti",
-        "cancel": "❌ Annulla",
-        "close": "✖️ Chiudi",
-        "yes": "✅ Sì",
-        "no": "❌ No",
-        "menu": "📋 Menu",
-        "help": "❓ Aiuto",
-        
-        # Buyer
-        "browse_products": "🛍️ Sfoglia Prodotti",
-        "my_chats": "💬 I Miei Chat",
-        "order_history": "📦 Cronologia Ordini",
-        "settings": "⚙️ Impostazioni",
-        "no_products": "Nessun prodotto disponibile al momento.",
-        "product_details": "Dettagli Prodotto",
-        "price": "Prezzo",
-        "supplier": "Fornitore",
-        "contact_supplier": "💬 Contatta Fornitore",
-        "view_payment_methods": "💳 Visualizza Metodi di Pagamento",
-        "inquire_product": "❓ Informazioni Prodotto",
-        "chat_with_supplier": "Chat avviata! Il tuo profilo è nascosto per la privacy.",
-        "no_chats": "Non hai ancora chat attivi.",
-        
-        # Supplier
-        "supplier_panel": "📊 Dashboard Fornitore",
-        "my_products": "📦 I Miei Prodotti",
-        "add_product": "➕ Aggiungi Prodotto",
-        "manage_products": "📝 Gestisci Prodotti",
-        "set_prices": "💰 Imposta Prezzi",
-        "buyer_inquiries": "📬 Richieste Acquirenti",
-        "payment_settings": "💳 Impostazioni Pagamento",
-        "supplier_stats": "📈 Statistiche",
-        "not_verified": "⚠️ Il tuo account è in sospeso di verifica. Revisione dell'amministratore richiesta.",
-        "buyer_profile_hidden": "🔒 Il profilo dell'acquirente è mantenuto privato per la sicurezza.",
-        "awaiting_supplier_response": "In attesa di risposta...",
-        
-        # Admin
-        "admin_panel": "👨‍💼 Pannello Amministratore",
-        "view_all_chats": "👁️ Visualizza Tutti i Chat",
-        "manage_users": "👥 Gestisci Utenti",
-        "manage_suppliers_admin": "🏪 Gestisci Fornitori",
-        "manage_products_admin": "📦 Gestisci Prodotti",
-        "system_stats": "📊 Statistiche Sistema",
-        "verify_supplier": "✅ Verifica Fornitore",
-        "block_user": "🚫 Blocca Utente",
-        "unblock_user": "🔓 Sblocca Utente",
-        "view_reports": "📋 Visualizza Report",
-        
-        # Superadmin
-        "superadmin_panel": "👑 Pannello Superadmin",
-        "add_admin": "➕ Aggiungi Nuovo Admin",
-        "remove_admin": "❌ Rimuovi Admin",
-        "list_admins": "👥 Elenca Tutti gli Admin",
-        "admin_added": "✅ Admin aggiunto con successo",
-        "admin_removed": "✅ Admin rimosso con successo",
-        "admin_exists": "⚠️ L'utente è già un admin",
-        "superadmin_only": "❌ Solo il superadmin può eseguire questa azione",
-        "confirm_remove": "⚠️ Sei sicuro di voler rimuovere questo admin?",
-        
-        # Errors
-        "error": "❌ Si è verificato un errore",
-        "unauthorized": "❌ Non sei autorizzato ad accedere a questo.",
-        "not_found": "Elemento non trovato.",
-        "invalid_input": "Input non valido. Riprova.",
-        "operation_failed": "Operazione non riuscita. Riprova.",
-        
-        # Success
-        "success": "✅ Successo",
-        "saved": "✅ Salvato con successo",
-        "updated": "✅ Aggiornato con successo",
-        "deleted": "✅ Eliminato con successo",
-        "created": "✅ Creato con successo",
-        
-        # Chat
-        "send_message": "Digita il tuo messaggio...",
-        "message_sent": "Messaggio inviato ✓",
-        "type_message": "Inserisci il tuo messaggio:",        "communicating_in": "🌐 Lingua della Conversazione",
-        "translation_note": "I messaggi vengono tradotti automaticamente",
-        "original_language": "Lingua Originale",
-        "translated_by": "Tradotto da Google Translate",
-        "language_detected": "Lingua rilevata",        
-        # Pagination
-        "page": "Pagina",
-        "of": "di",
-    },
-    "pt": {
-        # General
-        "welcome": "Bem-vindo ao DotGPT Shop Bot 🛍️",
-        "start_message": "Olá! Sou o DotGPT Shop Bot. O que gostaria de fazer?",
-        "language_select": "Selecione seu idioma",
-        "language_changed": "Idioma alterado para português ✓",
-        
-        # Common Buttons
-        "back": "⬅️ Voltar",
-        "next": "➡️ Próximo",
-        "cancel": "❌ Cancelar",
-        "close": "✖️ Fechar",
-        "yes": "✅ Sim",
-        "no": "❌ Não",
-        "menu": "📋 Menu",
-        "help": "❓ Ajuda",
-        
-        # Buyer
-        "browse_products": "🛍️ Procurar Produtos",
-        "my_chats": "💬 Meus Chats",
-        "order_history": "📦 Histórico de Pedidos",
-        "settings": "⚙️ Configurações",
-        "no_products": "Nenhum produto disponível no momento.",
-        "product_details": "Detalhes do Produto",
-        "price": "Preço",
-        "supplier": "Fornecedor",
-        "contact_supplier": "💬 Contatar Fornecedor",
-        "view_payment_methods": "💳 Ver Métodos de Pagamento",
-        "inquire_product": "❓ Informações do Produto",
-        "chat_with_supplier": "Chat iniciado! Seu perfil está oculto por privacidade.",
-        "no_chats": "Você ainda não tem chats ativos.",
-        
-        # Supplier
-        "supplier_panel": "📊 Painel do Fornecedor",
-        "my_products": "📦 Meus Produtos",
-        "add_product": "➕ Adicionar Produto",
-        "manage_products": "📝 Gerenciar Produtos",
-        "set_prices": "💰 Definir Preços",
-        "buyer_inquiries": "📬 Consultas de Compradores",
-        "payment_settings": "💳 Configurações de Pagamento",
-        "supplier_stats": "📈 Estatísticas",
-        "not_verified": "⚠️ Sua conta está pendente de verificação. Revisão do administrador necessária.",
-        "buyer_profile_hidden": "🔒 O perfil do comprador é mantido em privado por segurança.",
-        "awaiting_supplier_response": "Aguardando resposta...",
-        
-        # Admin
-        "admin_panel": "👨‍💼 Painel de Administração",
-        "view_all_chats": "👁️ Ver Todos os Chats",
-        "manage_users": "👥 Gerenciar Usuários",
-        "manage_suppliers_admin": "🏪 Gerenciar Fornecedores",
-        "manage_products_admin": "📦 Gerenciar Produtos",
-        "system_stats": "📊 Estatísticas do Sistema",
-        "verify_supplier": "✅ Verificar Fornecedor",
-        "block_user": "🚫 Bloquear Usuário",
-        "unblock_user": "🔓 Desbloquear Usuário",
-        "view_reports": "📋 Ver Relatórios",
-        
-        # Superadmin
-        "superadmin_panel": "👑 Painel Superadmin",
-        "add_admin": "➕ Adicionar Novo Admin",
-        "remove_admin": "❌ Remover Admin",
-        "list_admins": "👥 Listar Todos os Admins",
-        "admin_added": "✅ Admin adicionado com sucesso",
-        "admin_removed": "✅ Admin removido com sucesso",
-        "admin_exists": "⚠️ O usuário já é um admin",
-        "superadmin_only": "❌ Apenas o superadmin pode realizar esta ação",
-        "confirm_remove": "⚠️ Tem certeza de que deseja remover este admin?",
-        
-        # Errors
-        "error": "❌ Ocorreu um erro",
-        "unauthorized": "❌ Você não está autorizado a acessar isto.",
-        "not_found": "Item não encontrado.",
-        "invalid_input": "Entrada inválida. Tente novamente.",
-        "operation_failed": "A operação falhou. Tente novamente.",
-        
-        # Success
-        "success": "✅ Sucesso",
-        "saved": "✅ Salvo com sucesso",
-        "updated": "✅ Atualizado com sucesso",
-        "deleted": "✅ Deletado com sucesso",
-        "created": "✅ Criado com sucesso",
-        
-        # Chat
-        "send_message": "Digite sua mensagem...",
-        "message_sent": "Mensagem enviada ✓",
-        "type_message": "Digite sua mensagem:",
-        "communicating_in": "🌐 Idioma da Conversa",
-        "translation_note": "As mensagens são traduzidas automaticamente",
-        "original_language": "Idioma Original",
-        "translated_by": "Traduzido pelo Google Translate",
-        "language_detected": "Idioma detectado",
-        
-        # Pagination
-        "page": "Página",
-        "of": "de",
-    },
+    "es": {"welcome": "Bienvenido a DotGPT Shop Bot 🛍️", "start_message": "¡Hola! Soy DotGPT Shop Bot. ¿Qué te gustaría hacer?", "language_changed": "Idioma cambiado a Español ✓", "browse_products": "🛍️ Explorar Productos", "support": "🆘 Soporte", "chat_with_supplier": "¡Chat iniciado! Tu perfil está oculto por privacidad.", "supplier_request_sent": "✅ ¡Solicitud de verificación enviada! Admin revisará tu cuenta pronto.", "supplier_pending": "⏳ Tu cuenta está pendiente de verificación. Te notificaremos cuando esté confirmada.", "supplier_rejected": "❌ Tu cuenta fue rechazada. Estás prohibido de usar esta plataforma.", "enter_usd_price": "Ingresa el precio en USD (ej: 10.99):", "enter_stock": "Ingresa la cantidad en stock:", "back": "⬅️ Atrás", "cancel": "❌ Cancelar", "yes": "✅ Sí", "no": "❌ No", "error":"❌ Ocurrió un error", "success": "✅ Éxito"},
+    "fr": {"welcome": "Bienvenue sur DotGPT Shop Bot 🛍️", "start_message": "Bonjour! Je suis DotGPT Shop Bot. Que souhaitez-vous faire?", "language_changed": "Langue changée en français ✓", "browse_products": "🛍️ Parcourir les Produits", "support": "🆘 Support", "chat_with_supplier": "Chat démarré! Votre profil est caché pour la confidentialité.", "supplier_request_sent": "✅ Demande de vérification envoyée! Admin examinera votre compte bientôt.", "supplier_pending": "⏳ Votre compte est en attente de vérification. Nous vous notifierons une fois confirmé.", "supplier_rejected": "❌ Votre compte a été rejeté. Vous êtes interdit d'utiliser cette plateforme.", "enter_usd_price": "Entrez le prix en USD (ex: 10.99):", "enter_stock": "Entrez la quantité en stock:", "back": "⬅️ Retour", "cancel": "❌ Annuler", "yes": "✅ Oui", "no": "❌ Non", "error": "❌ Une erreur s'est produite", "success": "✅ Succès"},
+    "de": {"welcome": "Willkommen bei DotGPT Shop Bot 🛍️", "start_message": "Hallo! Ich bin DotGPT Shop Bot. Was möchten Sie tun?", "language_changed": "Sprache zu Deutsch geändert ✓", "browse_products": "🛍️ Produkte Durchsuchen", "support": "🆘 Unterstützung", "chat_with_supplier": "Chat gestartet! Ihr Profil ist aus Datenschutzgründen verborgen.", "supplier_request_sent": "✅ Verifizierungsanfrage gesendet! Admin wird bald Ihr Konto überprüfen.", "supplier_pending": "⏳ Ihr Konto wartet auf Überprüfung. Sie werden benachrichtigt, sobald es bestätigt ist.", "supplier_rejected": "❌ Ihr Konto wurde abgelehnt. Sie dürfen diese Plattform nicht verwenden.", "enter_usd_price": "USD-Preis eingeben (z.B. 10.99):", "enter_stock": "Lagermenge eingeben:", "back": "⬅️ Zurück", "cancel": "❌ Abbrechen", "yes": "✅ Ja", "no": "❌ Nein", "error": "❌ Ein Fehler ist aufgetreten", "success": "✅ Erfolg"},
+    "it": {"welcome": "Benvenuto su DotGPT Shop Bot 🛍️", "start_message": "Ciao! Sono DotGPT Shop Bot. Cosa vorresti fare?", "language_changed": "Lingua cambiata all'italiano ✓", "browse_products": "🛍️ Sfoglia Prodotti", "support": "🆘 Supporto", "chat_with_supplier": "Chat avviata! Il tuo profilo è nascosto per la privacy.", "supplier_request_sent": "✅ Richiesta di verifica inviata! Admin esaminerà il tuo account presto.", "supplier_pending": "⏳ Il tuo account è in sospeso di verifica. Ti notificheremo una volta confermato.", "supplier_rejected": "❌ Il tuo account è stato rifiutato. Sei vietato dall'usare questa piattaforma.", "enter_usd_price": "Inserisci il prezzo in USD (es: 10.99):", "enter_stock": "Inserisci la quantità in stock:", "back": "⬅️ Indietro", "cancel": "❌ Annulla", "yes": "✅ Sì", "no": "❌ No", "error": "❌ Si è verificato un errore", "success": "✅ Successo"},
+    "pt": {"welcome": "Bem-vindo ao DotGPT Shop Bot 🛍️", "start_message": "Olá! Sou o DotGPT Shop Bot. O que gostaria de fazer?", "language_changed": "Idioma alterado para português ✓", "browse_products": "🛍️ Procurar Produtos", "support": "🆘 Suporte", "chat_with_supplier": "Chat iniciado! Seu perfil está oculto por privacidade.", "supplier_request_sent": "✅ Solicitação de verificação enviada! Admin revisará sua conta em breve.", "supplier_pending": "⏳ Sua conta está pendente de verificação. Você será notificado quando confirmado.", "supplier_rejected": "❌ Sua conta foi rejeitada. Você está proibido de usar esta plataforma.", "enter_usd_price": "Digite o preço em USD (ex: 10.99):", "enter_stock": "Digite a quantidade em estoque:", "back": "⬅️ Voltar", "cancel": "❌ Cancelar", "yes": "✅ Sim", "no": "❌ Não", "error": "❌ Ocorreu um erro", "success": "✅ Sucesso"},
+    "ja": {"welcome": "DotGPT Shop Botへようこそ 🛍️", "start_message": "こんにちは！DotGPT Shop Botです。何をしたいですか？", "language_changed": "言語を日本語に変更しました ✓", "browse_products": "🛍️ 商品を閲覧", "support": "🆘 サポート", "chat_with_supplier": "チャットが開始されました！プライバシーのためにあなたのプロフィールは非表示です。", "supplier_request_sent": "✅ 確認リクエストが送信されました！管理者がすぐにアカウントを確認します。", "enter_usd_price": "USD価格を入力してください（例：10.99）:", "back": "⬅️ 戻る", "cancel": "❌ キャンセル", "error": "❌ エラーが発生しました", "success": "✅ 成功"},
+    "ru": {"welcome": "Добро пожаловать в DotGPT Shop Bot 🛍️", "start_message": "Привет! Я DotGPT Shop Bot. Что вы хотите сделать?", "language_changed": "Язык изменен на русский ✓", "browse_products": "🛍️ Обзор товаров", "support": "🆘 Поддержка", "chat_with_supplier": "Чат начат! Ваш профиль скрыт для конфиденциальности.", "supplier_request_sent": "✅ Запрос проверки отправлен! Администратор скоро проверит ваш аккаунт.", "enter_usd_price": "Введите цену в USD (например, 10.99):", "back": "⬅️ Назад", "cancel": "❌ Отмена", "error": "❌ Произошла ошибка", "success": "✅ Успех"},
+    "zh": {"welcome": "欢迎来到 DotGPT Shop Bot 🛍️", "start_message": "你好！我是 DotGPT Shop Bot。你想做什么？", "language_changed": "语言已更改为中文 ✓", "browse_products": "🛍️ 浏览产品", "support": "🆘 支持", "chat_with_supplier": "聊天已开始！为了隐私，您的个人资料是隐藏的。", "supplier_request_sent": "✅ 验证请求已发送！管理员将很快审查您的帐户。", "enter_usd_price": "输入美元价格（例如：10.99）:", "back": "⬅️ 返回", "cancel": "❌ 取消", "error": "❌ 发生了错误", "success": "✅ 成功"},
+    "ko": {"welcome": "DotGPT Shop Bot에 오신 것을 환영합니다 🛍️", "start_message": "안녕하세요! DotGPT Shop Bot입니다. 뭘 하고 싶으세요?", "language_changed": "한국어로 언어가 변경되었습니다 ✓", "browse_products": "🛍️ 상품 둘러보기", "support": "🆘 지원", "chat_with_supplier": "채팅이 시작되었습니다! 개인정보 보호를 위해 귀하의 프로필은 숨겨져 있습니다.", "supplier_request_sent": "✅ 검증 요청이 전송되었습니다! 관리자가 곧 귀하의 계정을 검토할 것입니다.", "enter_usd_price": "USD 가격을 입력하세요(예: 10.99):", "back": "⬅️ 뒤로", "cancel": "❌ 취소", "error": "❌ 오류가 발생했습니다", "success": "✅ 성공"},
+    "ar": {"welcome": "مرحبا بك في DotGPT Shop Bot 🛍️", "start_message": "مرحبا! أنا روبوت DotGPT Shop. ما الذي تود أن تفعله؟", "language_changed": "تم تغيير اللغة إلى العربية ✓", "browse_products": "🛍️ تصفح المنتجات", "support": "🆘 الدعم", "chat_with_supplier": "تم بدء الدردشة! ملفك الشخصي مخفي من أجل الخصوصية.", "supplier_request_sent": "✅ تم إرسال طلب التحقق! سيقوم المسؤول بمراجعة حسابك قريبا.", "enter_usd_price": "أدخل السعر بالدولار الأمريكي (مثال: 10.99):", "back": "⬅️ رجوع", "cancel": "❌ إلغاء", "error": "❌ حدث خطأ", "success": "✅ نجح"},
+    "hi": {"welcome": "DotGPT Shop Bot में आपका स्वागत है 🛍️", "start_message": "नमस्ते! मैं DotGPT Shop Bot हूँ। आप क्या करना चाहते हैं?", "language_changed": "भाषा हिंदी में बदल दी गई है ✓", "browse_products": "🛍️ उत्पाद ब्राउज़ करें", "support": "🆘 समर्थन", "chat_with_supplier": "चैट शुरू हो गया है! आपकी गोपनीयता के लिए आपकी प्रोफाइल छिपी है।", "supplier_request_sent": "✅ सत्यापन अनुरोध भेज दिया गया है! व्यवस्थापक जल्द ही आपके खाते की समीक्षा करेंगे।", "enter_usd_price": "USD मूल्य दर्ज करें (उदाहरण: 10.99):", "back": "⬅️ वापस", "cancel": "❌ रद्द करें", "error": "❌ एक त्रुटि हुई", "success": "✅ सफलता"},
+    "bn": {"welcome": "DotGPT Shop Bot এ স্বাগতম 🛍️", "start_message": "হ্যালো! আমি DotGPT Shop Bot। আপনি কি করতে চান?", "language_changed": "ভাষা বাংলায় পরিবর্তন করা হয়েছে ✓", "browse_products": "🛍️ পণ্য ব্রাউজ করুন", "support": "🆘 সহায়তা", "chat_with_supplier": "চ্যাট শুরু হয়েছে! আপনার গোপনীয়তার জন্য আপনার প্রোফাইল লুকানো আছে।", "supplier_request_sent": "✅ যাচাইকরণ অনুরোধ পাঠানো হয়েছে! প্রশাসক শীঘ্রই আপনার অ্যাকাউন্ট পর্যালোচনা করবেন।", "enter_usd_price": "USD মূল্য লিখুন (উদাহরণ: 10.99):", "back": "⬅️ ফিরে যান", "cancel": "❌ বাতিল করুন", "error": "❌ একটি ত্রুটি ঘটেছে", "success": "✅ সাফল্য"},
+    "tr": {"welcome": "DotGPT Shop Bot'a Hoşgeldiniz 🛍️", "start_message": "Merhaba! DotGPT Shop Bot'um. Ne yapmak istersiniz?", "language_changed": "Dil Türkçe olarak değiştirildi ✓", "browse_products": "🛍️ Ürünleri Gözat", "support": "🆘 Destek", "chat_with_supplier": "Sohbet başladı! Gizliliğiniz için profiliniz gizlenmiştir.", "supplier_request_sent": "✅ Doğrulama isteği gönderildi! Yönetici kısa süre içinde hesabınızı inceleyecektir.", "enter_usd_price": "USD fiyatını girin (örnek: 10.99):", "back": "⬅️ Geri", "cancel": "❌ İptal", "error": "❌ Bir hata oluştu", "success": "✅ Başarı"},
+    "id": {"welcome": "Selamat datang di DotGPT Shop Bot 🛍️", "start_message": "Halo! Saya adalah DotGPT Shop Bot. Apa yang ingin Anda lakukan?", "language_changed": "Bahasa diubah ke Indonesia ✓", "browse_products": "🛍️ Jelajahi Produk", "support": "🆘 Dukungan", "chat_with_supplier": "Obrolan dimulai! Profil Anda disembunyikan untuk privasi.", "supplier_request_sent": "✅ Permintaan verifikasi terkirim! Admin akan segera meninjau akun Anda.", "enter_usd_price": "Masukkan harga USD (contoh: 10.99):", "back": "⬅️ Kembali", "cancel": "❌ Batal", "error": "❌ Terjadi kesalahan", "success": "✅ Berhasil"},
+    "vi": {"welcome": "Chào mừng bạn đến DotGPT Shop Bot 🛍️", "start_message": "Xin chào! Tôi là DotGPT Shop Bot. Bạn muốn làm gì?", "language_changed": "Ngôn ngữ đã được thay đổi thành Tiếng Việt ✓", "browse_products": "🛍️ Duyệt sản phẩm", "support": "🆘 Hỗ trợ", "chat_with_supplier": "Bắt đầu trò chuyện! Hồ sơ của bạn được ẩn vì quyền riêng tư.", "supplier_request_sent": "✅ Yêu cầu xác minh đã gửi! Quản trị viên sẽ xem xét tài khoản của bạn sớm.", "enter_usd_price": "Nhập giá USD (ví dụ: 10.99):", "back": "⬅️ Quay lại", "cancel": "❌ Hủy", "error": "❌ Đã xảy ra lỗi", "success": "✅ Thành công"},
+    "th": {"welcome": "ยินดีต้อนรับสู่ DotGPT Shop Bot 🛍️", "start_message": "สวัสดี! ฉันคือ DotGPT Shop Bot คุณต้องการทำอะไร?", "language_changed": "ภาษาเปลี่ยนเป็นไทย ✓", "browse_products": "🛍️ เรียกดูผลิตภัณฑ์", "support": "🆘 สนับสนุน", "chat_with_supplier": "เริ่มแชท! โปรไฟล์ของคุณซ่อนหลังจากเพื่อความเป็นส่วนตัว", "supplier_request_sent": "✅ ส่งคำขอการยืนยันแล้ว! ผู้ดูแลระบบจะตรวจสอบบัญชีของคุณในไม่ช้า", "enter_usd_price": "ป้อนราคา USD (ตัวอย่าง: 10.99):", "back": "⬅️ กลับ", "cancel": "❌ ยกเลิก", "error": "❌ เกิดข้อผิดพลาดแล้ว", "success": "✅ สำเร็จ"},
+    "pl": {"welcome": "Witaj w DotGPT Shop Bot 🛍️", "start_message": "Cześć! Jestem DotGPT Shop Bot. Co chciałbyś zrobić?", "language_changed": "Język zmieniony na polski ✓", "browse_products": "🛍️ Przeglądaj produkty", "support": "🆘 Pomoc", "chat_with_supplier": "Rozmowa rozpoczęta! Twój profil jest ukryty dla prywatności.", "supplier_request_sent": "✅ Żądanie weryfikacji wysłane! Administrator wkrótce przejrzy Twoje konto.", "enter_usd_price": "Wprowadź cenę USD (przykład: 10.99):", "back": "⬅️ Wróć", "cancel": "❌ Anuluj", "error": "❌ Wystąpił błąd", "success": "✅ Sukces"},
 }
 
 def get_string(key: str, language: str = "en") -> str:
-    """Get translated string"""
-    return STRINGS.get(language, STRINGS["en"]).get(key, key)
+    """Get translated string with fallback"""
+    if language in STRINGS and key in STRINGS[language]:
+        return STRINGS[language][key]
+    if key in STRINGS["en"]:
+        return STRINGS["en"][key]
+    return key

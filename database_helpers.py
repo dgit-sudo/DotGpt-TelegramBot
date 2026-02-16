@@ -291,18 +291,48 @@ def get_all_suppliers() -> List[Supplier]:
     return suppliers
 
 def get_unverified_suppliers() -> List[Supplier]:
-    """Get unverified suppliers"""
+    """Get pending suppliers (not yet verified or rejected)"""
     db = SessionLocal()
-    suppliers = db.query(Supplier).filter(Supplier.verified == False).all()
+    suppliers = db.query(Supplier).filter(Supplier.status == "pending").all()
+    db.close()
+    return suppliers
+
+def get_verified_suppliers() -> List[Supplier]:
+    """Get verified suppliers"""
+    db = SessionLocal()
+    suppliers = db.query(Supplier).filter(
+        Supplier.status == "verified",
+        Supplier.is_banned == False
+    ).all()
     db.close()
     return suppliers
 
 def verify_supplier(supplier_id: int):
-    """Verify a supplier"""
+    """Verify a supplier - set status to verified"""
     db = SessionLocal()
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if supplier:
-        supplier.verified = True
+        supplier.status = "verified"
+        supplier.is_banned = False
+        db.commit()
+    db.close()
+
+def reject_supplier(supplier_id: int):
+    """Reject and ban a supplier"""
+    db = SessionLocal()
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if supplier:
+        supplier.status = "rejected"
+        supplier.is_banned = True
+        db.commit()
+    db.close()
+
+def ban_supplier(supplier_id: int):
+    """Ban a supplier"""
+    db = SessionLocal()
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if supplier:
+        supplier.is_banned = True
         db.commit()
     db.close()
 

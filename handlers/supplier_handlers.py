@@ -6,6 +6,7 @@ from database_helpers import (
     get_supplier,
     get_supplier_chats,
     get_products_by_supplier,
+    create_supplier_verification_request,
 )
 from config import ADMIN_IDS
 import logging
@@ -16,42 +17,92 @@ logger = logging.getLogger(__name__)
 ENTER_COMPANY_NAME = 1
 
 async def supplier_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show supplier panel or registration"""
+    """Handle supplier registration - instant verification request"""
     user_id = update.effective_user.id
+    user = update.effective_user
     language = context.user_data.get('language', 'en')
     
     supplier = get_supplier(user_id)
     
-    if not supplier:
-        # New supplier - show registration
-        await show_supplier_registration(update, context, language)
-        return ConversationHandler.END
-    
-    # Existing supplier
-    if not supplier.verified:
+    if supplier:
+        # Existing supplier
+        if supplier.is_banned:
+            await update.message.reply_text(
+                get_string("supplier_banned", language),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(get_string("menu", language), callback_data="buyer_menu")]
+                ])
+            )
+            return
+        
+        if supplier.status == "pending":
+            await update.message.reply_text(
+                get_string("supplier_pending", language),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(get_string("menu", language), callback_data="buyer_menu")]
+                ])
+            )
+            return
+        
+        if supplier.status == "verified":
+            # Show supplier dashboard
+            await show_supplier_dashboard(update, context, language, supplier)
+            return
+        
+        # Status is rejected
         await update.message.reply_text(
-            get_string("not_verified", language),
+            get_string("supplier_rejected", language),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton(get_string("menu", language), callback_data="buyer_menu")]
             ])
         )
         return
     
-    # Show supplier dashboard
-    await show_supplier_dashboard(update, context, language, supplier)
-
-async def show_supplier_registration(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
-    """Show supplier registration form"""
-    message = f"""
-🏪 {get_string("supplier_panel", language)}
-
-{get_string("start_message", language)}
-
-{get_string("supply_company_name_prompt", language) if "supply_company_name_prompt" in dir() else "Please provide your company name:"}
-"""
+    # New supplier - create with pending status and send verification request
+    supplier = get_or_create_supplier(
+        user_id, 
+        user.username or "User", 
+        f"{user.first_name} {user.last_name or ''}".strip() or "Supplier"
+    )
     
-    await update.message.reply_text(message)
-    return ENTER_COMPANY_NAME
+    # Send notification to admin about new verification request
+    await send_verification_request_to_admin(supplier, context)
+    
+    # Notify supplier
+    await update.message.reply_text(
+        get_string("supplier_request_sent", language),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_string("menu", language), callback_data="buyer_menu")]
+        ])
+    )
+
+async def send_verification_request_to_admin(supplier, context: ContextTypes.DEFAULT_TYPE):
+    """Send verification request notification to admin"""
+    from database import SessionLocal
+    try:
+        db = SessionLocal()
+        admin_users = db.query(db.bind.table("admin_users")).all()
+        
+        message = f"""
+👤 NEW SUPPLIER VERIFICATION REQUEST
+
+Company: {supplier.company_name}
+Telegram ID: {supplier.telegram_id}
+Username: @{supplier.username}
+
+Click /admin to review and verify or reject.
+        """
+        
+        for admin_id in ADMIN_IDS:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=message
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id}: {e}")
+    except Exception as e:
+        logger.error(f"Error sending verification request: {e}")
 
 async def show_supplier_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str, supplier):
     """Show supplier dashboard"""
@@ -68,15 +119,7 @@ async def show_supplier_dashboard(update: Update, context: ContextTypes.DEFAULT_
 🏪 {get_string("supplier_panel", language)}
 
 {supplier.company_name}
-{'✅ ' + get_string('success', language) if supplier.verified else '⚠️ ' + get_string('not_verified', language)}
-
-{get_string("start_message", language)}
-"""
-    
-    if update.callback_query:
-        await update.callback_query.edit_message_text(
-            text=message,
-            reply_markup=reply_markup,
+✅ {get_string('success', language)}
             parse_mode='Markdown'
         )
     else:

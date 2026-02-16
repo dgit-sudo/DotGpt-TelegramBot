@@ -7,6 +7,7 @@ from database_helpers import (
     get_all_chats,
     get_system_stats,
     verify_supplier,
+    reject_supplier,
     block_user,
     unblock_user,
     is_admin,
@@ -148,7 +149,7 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
 async def show_suppliers_management(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show suppliers management panel"""
+    """Show suppliers management panel with pending verification requests"""
     language = context.user_data.get('language', 'en')
     query = update.callback_query
     
@@ -158,22 +159,23 @@ async def show_suppliers_management(update: Update, context: ContextTypes.DEFAUL
     message = f"""
 🏪 {get_string("manage_suppliers_admin", language)}
 
-⚠️ Unverified: {len(unverified)}
-✅ Total Suppliers: {len(all_suppliers)}
+Pending: {len(unverified)}
+verified: {len([s for s in all_suppliers if s.status == 'verified'])}
+Total: {len(all_suppliers)}
 """
     
     buttons = []
     
     if unverified:
-        message += f"\n\nPending Verification:\n"
+        message += f"\n\n👤 {get_string('supplier_verification_requests', language)}:\n"
         for supplier in unverified:
-            message += f"  • {supplier.company_name}\n"
+            message += f"  • {supplier.company_name} (@{supplier.username})\n"
             buttons.append([
-                InlineKeyboardButton(
-                    f"✅ {supplier.company_name}",
-                    callback_data=f"admin_verify_{supplier.id}"
-                )
+                InlineKeyboardButton(f"✅ Verify: {supplier.company_name}", callback_data=f"admin_verify_{supplier.id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_{supplier.id}")
             ])
+    else:
+        message += "\n\nAll suppliers verified or no pending requests.\n"
     
     buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
     
@@ -231,6 +233,11 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         supplier_id = int(action_parts[2])
         verify_supplier(supplier_id)
         await query.answer(get_string("success", language), show_alert=True)
+        await show_suppliers_management(update, context)
+    elif action == "reject":
+        supplier_id = int(action_parts[2])
+        reject_supplier(supplier_id)
+        await query.answer("❌ Supplier rejected and banned", show_alert=True)
         await show_suppliers_management(update, context)
     
     await query.answer()
@@ -338,23 +345,23 @@ async def show_attach_product_select(update: Update, context: ContextTypes.DEFAU
     await query.answer()
 
 async def show_attach_supplier_select(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int):
-    """Select supplier to attach to product"""
+    """Select verified supplier to attach to product"""
     language = context.user_data.get('language', 'en')
     query = update.callback_query
-
-    suppliers = get_all_suppliers()
+    
+    from database_helpers import get_verified_suppliers
+    suppliers = get_verified_suppliers()
     if not suppliers:
         await query.edit_message_text(get_string("not_found", language))
         await query.answer()
         return
 
     buttons = []
-    message = "🔗 Select supplier to attach:\n\n"
+    message = "🔗 Select seller to attach:\n\n"
     for supplier in suppliers:
-        status = "✅" if supplier.verified else "⚠️"
-        label = f"{status} {supplier.company_name}"
+        message += f"✅ {supplier.company_name}\n"
         buttons.append([
-            InlineKeyboardButton(label, callback_data=f"admin_attach_supplier_{product_id}_{supplier.id}")
+            InlineKeyboardButton(supplier.company_name, callback_data=f"admin_attach_supplier_{product_id}_{supplier.id}")
         ])
 
     buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")])
@@ -363,7 +370,7 @@ async def show_attach_supplier_select(update: Update, context: ContextTypes.DEFA
     await query.answer()
 
 async def show_attach_price_form(update: Update, context: ContextTypes.DEFAULT_TYPE, product_id: int, supplier_id: int):
-    """Ask admin for price and stock"""
+    """Ask admin for USD price and stock"""
     language = context.user_data.get('language', 'en')
     query = update.callback_query
 
@@ -380,7 +387,7 @@ async def show_attach_price_form(update: Update, context: ContextTypes.DEFAULT_T
     }
 
     await query.edit_message_text(
-        text=f"💰 Set price for {product.name} at {supplier.company_name}\n\nSend price (e.g. 19.99):",
+        text=f"💰 Set price for {product.name} at {supplier.company_name}\n\n{get_string('enter_usd_price', language)}",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton(get_string("back", language), callback_data="admin_manage_products")]
         ])
