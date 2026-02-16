@@ -8,8 +8,43 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(","))) if os.getenv("ADMIN_IDS") else []
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dotgpt_bot.db")
 
-# Supported Languages
-SUPPORTED_LANGUAGES = ["en", "es", "fr", "de", "it", "pt"]
+# Supported Languages - 25+ world languages
+SUPPORTED_LANGUAGES = [
+    "en",  # English
+    "es",  # Spanish
+    "fr",  # French
+    "de",  # German
+    "it",  # Italian
+    "pt",  # Portuguese
+    "ja",  # Japanese
+    "ru",  # Russian
+    "zh",  # Chinese (Simplified)
+    "ko",  # Korean
+    "ar",  # Arabic
+    "hi",  # Hindi
+    "bn",  # Bengali
+    "tr",  # Turkish
+    "id",  # Indonesian
+    "vi",  # Vietnamese
+    "th",  # Thai
+    "pl",  # Polish
+    "uk",  # Ukrainian
+    "nl",  # Dutch
+    "el",  # Greek
+    "sv",  # Swedish
+    "da",  # Danish
+    "no",  # Norwegian
+    "fi",  # Finnish
+    "cs",  # Czech
+    "hu",  # Hungarian
+    "ro",  # Romanian
+    "sr",  # Serbian
+    "bg",  # Bulgarian
+    "hr",  # Croatian
+    "sl",  # Slovenian
+    "sk",  # Slovak
+    "et",  # Estonian
+]
 DEFAULT_LANGUAGE = "en"
 
 # Payment Methods

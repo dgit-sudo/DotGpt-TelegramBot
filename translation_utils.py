@@ -16,6 +16,7 @@ except Exception:
     GOOGLETRANS_AVAILABLE = False
 
 from config import SUPPORTED_LANGUAGES
+from strings import STRINGS
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,51 @@ FALLBACK_LANGUAGES = {
     "de": "German",
     "it": "Italian",
     "pt": "Portuguese",
+    "ja": "日本語",
+    "ru": "Русский",
+    "zh": "中文",
+    "ko": "한국어",
+    "ar": "العربية",
+    "hi": "हिन्दी",
+    "bn": "বাংলা",
+    "tr": "Türkçe",
+    "id": "Bahasa Indonesia",
+    "vi": "Tiếng Việt",
+    "th": "ไทย",
+    "pl": "Polski",
+    "uk": "Українська",
+    "nl": "Nederlands",
+    "el": "Ελληνικά",
+    "sv": "Svenska",
+    "da": "Dansk",
+    "no": "Norsk",
+    "fi": "Suomi",
+    "cs": "Čeština",
+    "hu": "Magyar",
+    "ro": "Română",
+    "sr": "Српски",
+    "bg": "Български",
+    "hr": "Hrvatski",
+    "sl": "Slovenščina",
+    "sk": "Slovenčina",
+    "et": "Eesti",
 }
 
-ALL_LANGUAGES = LANGUAGES if LANGUAGES else {
-    code: FALLBACK_LANGUAGES.get(code, code)
-    for code in SUPPORTED_LANGUAGES
-}
+# Build language names from STRINGS
+ALL_LANGUAGES = {}
+for lang_code in SUPPORTED_LANGUAGES:
+    # Try to get from language_changed string in STRINGS
+    if lang_code in STRINGS and "language_changed" in STRINGS[lang_code]:
+        # Extract language name from "Language changed to {name}" string
+        changed_str = STRINGS[lang_code]["language_changed"]  # e.g., "Language changed to English ✓"
+        parts = changed_str.split("to ")
+        if len(parts) > 1:
+            name = parts[1].replace(" ✓", "").strip()
+            ALL_LANGUAGES[lang_code] = name
+        else:
+            ALL_LANGUAGES[lang_code] = FALLBACK_LANGUAGES.get(lang_code, lang_code)
+    else:
+        ALL_LANGUAGES[lang_code] = FALLBACK_LANGUAGES.get(lang_code, lang_code)
 
 # Initialize translator if available
 translator = Translator() if GOOGLETRANS_AVAILABLE else None
