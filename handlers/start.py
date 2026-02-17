@@ -24,48 +24,90 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_language_selection(update, context, page=0)
 
 async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
-    """Show language selection with pagination (6 languages per page)"""
+    """Show language selection with pagination
+    
+    Page 0: English, Persian, Burmese, Indonesian (featured languages)
+    Page 1+: All other languages (6 per page)
+    """
+    
+    # Featured languages for first page
+    featured_langs = ["en", "fa", "my", "id"]
     
     # Get all available languages
     all_languages = get_all_languages()
-    lang_codes = sorted(all_languages.keys())
     
-    # Define languages per page
+    # Create list of remaining languages (all except featured)
+    all_lang_codes = sorted(all_languages.keys())
+    remaining_langs = [code for code in all_lang_codes if code not in featured_langs]
+    
+    # Define languages per page for remaining languages
     langs_per_page = 6
-    total_pages = (len(lang_codes) + langs_per_page - 1) // langs_per_page
+    total_remaining_pages = (len(remaining_langs) + langs_per_page - 1) // langs_per_page
+    total_pages = 1 + total_remaining_pages  # 1 for featured page + remaining pages
     
-    # Get languages for current page
-    start_idx = page * langs_per_page
-    end_idx = start_idx + langs_per_page
-    page_langs = lang_codes[start_idx:end_idx]
-    
-    # Create keyboard
+    # Build keyboard based on current page
     keyboard = []
-    for lang_code in page_langs:
-        lang_name = all_languages[lang_code]
-        keyboard.append([
-            InlineKeyboardButton(lang_name, callback_data=f"lang_{lang_code}")
-        ])
     
-    # Add pagination buttons
-    pagination_buttons = []
-    if page > 0:
-        pagination_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"lang_page_{page-1}"))
-    
-    pagination_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
-    
-    if page < total_pages - 1:
-        pagination_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"lang_page_{page+1}"))
-    
-    if pagination_buttons:
-        keyboard.append(pagination_buttons)
+    if page == 0:
+        # Show featured languages on first page
+        for lang_code in featured_langs:
+            if lang_code in all_languages:
+                lang_name = all_languages[lang_code]
+                keyboard.append([
+                    InlineKeyboardButton(lang_name, callback_data=f"lang_{lang_code}")
+                ])
+        
+        # Add pagination buttons if there are more pages
+        pagination_buttons = []
+        if total_pages > 1:
+            pagination_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+            pagination_buttons.append(InlineKeyboardButton("More languages ➡️", callback_data="lang_page_1"))
+        
+        if pagination_buttons:
+            keyboard.append(pagination_buttons)
+    else:
+        # Show remaining languages on pages 1+
+        page_idx = page - 1  # Convert to index for remaining_langs
+        start_idx = page_idx * langs_per_page
+        end_idx = start_idx + langs_per_page
+        page_langs = remaining_langs[start_idx:end_idx]
+        
+        for lang_code in page_langs:
+            lang_name = all_languages[lang_code]
+            keyboard.append([
+                InlineKeyboardButton(lang_name, callback_data=f"lang_{lang_code}")
+            ])
+        
+        # Add pagination buttons
+        pagination_buttons = []
+        if page > 1:
+            pagination_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"lang_page_{page-1}"))
+        elif page == 1:
+            pagination_buttons.append(InlineKeyboardButton("⬅️ Featured", callback_data="lang_page_0"))
+        
+        pagination_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+        
+        if page < total_pages - 1:
+            pagination_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"lang_page_{page+1}"))
+        
+        if pagination_buttons:
+            keyboard.append(pagination_buttons)
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    welcome_message = f"""
+    if page == 0:
+        welcome_message = f"""
 🛍️ *{STRINGS['en']['welcome']}*
 
-🌐 *We support 100+ languages!*
+🌐 *Select your language:*
+
+{STRINGS['en']['language_select']}
+"""
+    else:
+        welcome_message = f"""
+🛍️ *{STRINGS['en']['welcome']}*
+
+🌐 *More languages:*
 
 {STRINGS['en']['language_select']}
 
