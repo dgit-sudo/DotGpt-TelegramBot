@@ -26,12 +26,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
     """Show language selection with pagination
     
-    Page 0: English, Persian, Burmese, Indonesian (featured languages)
+    Page 0: English, Persian, Burmese, Indonesian, Russian (featured languages)
     Page 1+: All other languages (6 per page)
     """
     
     # Featured languages for first page
-    featured_langs = ["en", "fa", "my", "id"]
+    featured_langs = ["en", "fa", "my", "id", "ru"]
     
     # Get all available languages
     all_languages = get_all_languages()
