@@ -68,6 +68,12 @@ class DotGPTBot:
         # Supplier commands
         self.app.add_handler(CommandHandler("supplier", supplier_handlers.supplier_panel))
         
+        # CSV file upload handler (must come FIRST - before any text handlers)
+        self.app.add_handler(MessageHandler(
+            filters.Document.MimeType("text/csv") | filters.Document.MimeType("text/plain"),
+            admin_handlers.handle_csv_file_upload
+        ))
+        
         # Admin ID input handler (before general message handler)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,  # Only plain text messages
@@ -163,12 +169,6 @@ class DotGPTBot:
         self.app.add_handler(CallbackQueryHandler(
             admin_handlers.handle_csv_import_confirmation,
             pattern=r"^csv_confirm_import$"
-        ))
-        
-        # CSV file upload handler (must come before general message handler)
-        self.app.add_handler(MessageHandler(
-            filters.Document.MimeType("text/csv") | filters.Document.MimeType("text/plain"),
-            admin_handlers.handle_csv_file_upload
         ))
         
         # Superadmin handlers
