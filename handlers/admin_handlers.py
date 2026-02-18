@@ -65,7 +65,8 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE, l
         [InlineKeyboardButton(get_string("manage_users", language), callback_data="admin_manage_users")],
         [InlineKeyboardButton(get_string("manage_suppliers_admin", language), callback_data="admin_suppliers")],
         [InlineKeyboardButton(get_string("manage_products_admin", language), callback_data="admin_manage_products")],
-        [InlineKeyboardButton("🔍 " + get_string("pending_sales", language), callback_data="admin_pending_sales")],
+        [InlineKeyboardButton("� Import Products (CSV)", callback_data="admin_csv_import")],
+        [InlineKeyboardButton("�🔍 " + get_string("pending_sales", language), callback_data="admin_pending_sales")],
         [InlineKeyboardButton(get_string("support", language), callback_data="admin_support_chats")],
         [InlineKeyboardButton(get_string("system_stats", language), callback_data="admin_stats")],
     ])
@@ -223,6 +224,8 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_manage_users(update, context)
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
+    elif action == "csv" and action_parts[2] == "import":
+        await request_csv_upload(update, context)
     elif action == "add" and action_parts[2] == "product":
         if len(action_parts) == 3:
             await show_add_product_form(update, context)
@@ -1205,4 +1208,341 @@ async def reject_sale_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer(get_string("error", language), show_alert=True)
     
     # Show pending sales again
+    await show_pending_sales(update, context)
+
+
+# ============= CSV PRODUCT IMPORT =============
+
+async def request_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Request CSV file upload from admin"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+    
+    if not is_admin(user_id):
+        await query.answer("Unauthorized", show_alert=True)
+        return
+    
+    # Reset CSV import context
+    context.user_data['csv_import_state'] = 'waiting_for_file'
+    context.user_data['csv_products'] = []
+    context.user_data['csv_current_index'] = 0
+    
+    message = """
+📊 **CSV Product Import**
+
+Please upload a CSV file with the following format:
+
+```
+Product Name
+Item 1
+Item 2
+Item 3
+...
+```
+
+One product name per line. I will guide you through the rest!
+
+⚠️ Duplicate names will be detected and handled.
+"""
+    
+    if query:
+        await query.edit_message_text(
+            text=message,
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            text=message,
+            parse_mode='Markdown'
+        )
+
+
+async def handle_csv_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle CSV file upload for product import"""
+    import csv
+    import io
+    
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    
+    if not is_admin(user_id):
+        return
+    
+    # Check if in CSV import mode
+    if context.user_data.get('csv_import_state') != 'waiting_for_file':
+        return
+    
+    # Get the file
+    if not update.message.document:
+        await update.message.reply_text("❌ Please upload a CSV file")
+        return
+    
+    file = await update.message.document.get_file()
+    file_content = await file.download_as_bytearray()
+    
+    try:
+        # Parse CSV
+        text_content = file_content.decode('utf-8')
+        reader = csv.reader(io.StringIO(text_content))
+        
+        product_names = []
+        for row in reader:
+            if row and row[0].strip():  # Skip empty rows
+                product_names.append(row[0].strip())
+        
+        if not product_names:
+            await update.message.reply_text("❌ No products found in CSV")
+            context.user_data['csv_import_state'] = None
+            return
+        
+        # Check for duplicates in CSV
+        from database_helpers import get_all_products
+        existing_products = {p.name.lower() for p in get_all_products()}
+        
+        duplicates_in_csv = []
+        conflicts_with_existing = []
+        valid_products = []
+        
+        for product_name in product_names:
+            lower_name = product_name.lower()
+            if lower_name in [p.lower() for p in duplicates_in_csv]:
+                duplicates_in_csv.append(product_name)
+            elif lower_name in existing_products:
+                conflicts_with_existing.append(product_name)
+            else:
+                valid_products.append(product_name)
+        
+        # Build conflict report
+        conflict_msg = f"📊 **CSV Upload Report**\n\n"
+        conflict_msg += f"✅ **Valid products:** {len(valid_products)}\n"
+        
+        if duplicates_in_csv:
+            conflict_msg += f"⚠️ **Duplicates in CSV:** {len(duplicates_in_csv)}\n"
+            conflict_msg += f"   {', '.join(duplicates_in_csv[:5])}"
+            if len(duplicates_in_csv) > 5:
+                conflict_msg += f" ... and {len(duplicates_in_csv) - 5} more\n"
+        
+        if conflicts_with_existing:
+            conflict_msg += f"🚫 **Already exist:** {len(conflicts_with_existing)}\n"
+            conflict_msg += f"   {', '.join(conflicts_with_existing[:5])}"
+            if len(conflicts_with_existing) > 5:
+                conflict_msg += f" ... and {len(conflicts_with_existing) - 5} more\n"
+        
+        conflict_msg += f"\n**Proceeding with {len(valid_products)} products**\n"
+        conflict_msg += "Next: I'll ask for supplier and price for each product."
+        
+        await update.message.reply_text(conflict_msg, parse_mode='Markdown')
+        
+        # Store valid products and move to next step
+        context.user_data['csv_products'] = [
+            {'name': name, 'supplier_id': None, 'price': None}
+            for name in valid_products
+        ]
+        context.user_data['csv_current_index'] = 0
+        context.user_data['csv_import_state'] = 'asking_supplier'
+        
+        # Ask for first product's supplier
+        await ask_for_product_details(update, context, language)
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error parsing CSV: {str(e)}")
+        context.user_data['csv_import_state'] = None
+
+
+async def ask_for_product_details(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
+    """Ask for supplier and price for current product"""
+    products = context.user_data.get('csv_products', [])
+    current_idx = context.user_data.get('csv_current_index', 0)
+    
+    if current_idx >= len(products):
+        # All done, show confirmation
+        await show_csv_import_summary(update, context, language)
+        return
+    
+    current_product = products[current_idx]
+    product_name = current_product['name']
+    
+    from database_helpers import get_verified_suppliers
+    suppliers = get_verified_suppliers()
+    
+    if not suppliers:
+        await update.message.reply_text("❌ No verified suppliers available. Please add suppliers first.")
+        context.user_data['csv_import_state'] = None
+        return
+    
+    # Build supplier keyboard
+    buttons = []
+    for supplier in suppliers:
+        buttons.append([
+            InlineKeyboardButton(
+                supplier.company_name,
+                callback_data=f"csv_select_supplier_{current_idx}_{supplier.id}"
+            )
+        ])
+    
+    buttons.append([InlineKeyboardButton("❌ Cancel Import", callback_data="admin_menu")])
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    message = f"""
+📦 **Product {current_idx + 1} of {len(products)}**
+
+**Name:** {product_name}
+
+👤 Select supplier to assign:
+"""
+    
+    await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+
+async def handle_csv_supplier_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle supplier selection for CSV product"""
+    query = update.callback_query
+    language = context.user_data.get('language', 'en')
+    
+    # Extract product index and supplier ID
+    parts = query.data.split("_")
+    product_idx = int(parts[3])
+    supplier_id = int(parts[4])
+    
+    products = context.user_data.get('csv_products', [])
+    if product_idx >= len(products):
+        await query.answer("Invalid product index", show_alert=True)
+        return
+    
+    # Store supplier ID
+    products[product_idx]['supplier_id'] = supplier_id
+    context.user_data['csv_products'] = products
+    
+    # Ask for price
+    from database_helpers import get_supplier_by_id
+    supplier = get_supplier_by_id(supplier_id)
+    
+    message = f"""
+💰 **Enter Price**
+
+Product: {products[product_idx]['name']}
+Supplier: {supplier.company_name}
+
+Please reply with the product price (numbers only, e.g., 100 or 99.99):
+"""
+    
+    await query.edit_message_text(message, parse_mode='Markdown')
+    context.user_data['csv_current_index'] = product_idx
+    context.user_data['csv_import_state'] = 'asking_price'
+
+
+async def handle_csv_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle price input for CSV product"""
+    language = context.user_data.get('language', 'en')
+    
+    if context.user_data.get('csv_import_state') != 'asking_price':
+        return
+    
+    try:
+        price = float(update.message.text)
+        if price <= 0:
+            await update.message.reply_text("❌ Price must be greater than 0")
+            return
+    except ValueError:
+        await update.message.reply_text("❌ Invalid price format. Please enter a number.")
+        return
+    
+    # Store price and move to next product
+    products = context.user_data.get('csv_products', [])
+    current_idx = context.user_data.get('csv_current_index', 0)
+    
+    products[current_idx]['price'] = price
+    context.user_data['csv_products'] = products
+    context.user_data['csv_current_index'] = current_idx + 1
+    context.user_data['csv_import_state'] = 'asking_supplier'
+    
+    # Ask for next product or show summary
+    if current_idx + 1 < len(products):
+        await ask_for_product_details(update, context, language)
+    else:
+        await show_csv_import_summary(update, context, language)
+
+
+async def show_csv_import_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
+    """Show summary and ask for confirmation before importing"""
+    products = context.user_data.get('csv_products', [])
+    
+    message = "📋 **Import Summary**\n\n"
+    message += f"Total products to import: {len(products)}\n\n"
+    
+    from database_helpers import get_supplier_by_id
+    
+    for idx, product in enumerate(products, 1):
+        supplier = get_supplier_by_id(product['supplier_id'])
+        message += f"{idx}. **{product['name']}**\n"
+        message += f"   Supplier: {supplier.company_name}\n"
+        message += f"   Price: {product['price']}\n\n"
+    
+    message += "✅ Click below to confirm import, or ❌ to cancel"
+    
+    buttons = [
+        [InlineKeyboardButton("✅ Confirm & Import", callback_data="csv_confirm_import")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="admin_menu")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+    context.user_data['csv_import_state'] = 'awaiting_confirmation'
+
+
+async def handle_csv_import_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Confirm and save all CSV imported products"""
+    query = update.callback_query
+    language = context.user_data.get('language', 'en')
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await query.answer("Unauthorized", show_alert=True)
+        return
+    
+    products = context.user_data.get('csv_products', [])
+    
+    if not products:
+        await query.answer("No products to import", show_alert=True)
+        return
+    
+    try:
+        from database_helpers import create_product, attach_product_to_supplier, update_product_price
+        
+        imported_count = 0
+        for product_data in products:
+            # Create product
+            product = create_product(
+                name=product_data['name'],
+                description=f"Imported from CSV",
+                category="Imported",
+                active=True
+            )
+            
+            # Attach to supplier
+            attach_product_to_supplier(product.id, product_data['supplier_id'])
+            
+            # Set price
+            if product_data['price']:
+                update_product_price(product.id, product_data['supplier_id'], product_data['price'])
+            
+            imported_count += 1
+        
+        # Clear context
+        context.user_data['csv_products'] = []
+        context.user_data['csv_import_state'] = None
+        
+        message = f"✅ **Import Successful!**\n\nImported {imported_count} products\n\nAll products have been added with their assigned suppliers and prices."
+        await query.edit_message_text(message, parse_mode='Markdown')
+        
+        # Show admin menu
+        await show_admin_panel(update, context, language)
+        
+    except Exception as e:
+        await query.answer(f"Error importing: {str(e)}", show_alert=True)
+        logger.error(f"CSV import error: {e}")
+        context.user_data['csv_import_state'] = None
     await show_pending_sales(update, context)

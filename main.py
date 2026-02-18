@@ -74,6 +74,12 @@ class DotGPTBot:
             admin_handlers.process_add_admin_id
         ))
         
+        # CSV price input handler (before general chat handler)
+        self.app.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            admin_handlers.handle_csv_price_input
+        ))
+        
         # Chat handlers
         self.app.add_handler(MessageHandler(
             None,
@@ -146,6 +152,23 @@ class DotGPTBot:
         self.app.add_handler(CallbackQueryHandler(
             admin_handlers.reject_sale_handler,
             pattern=r"^admin_reject_sale_"
+        ))
+        
+        # CSV Product Import handlers
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.handle_csv_supplier_selection,
+            pattern=r"^csv_select_supplier_"
+        ))
+        
+        self.app.add_handler(CallbackQueryHandler(
+            admin_handlers.handle_csv_import_confirmation,
+            pattern=r"^csv_confirm_import$"
+        ))
+        
+        # CSV file upload handler (must come before general message handler)
+        self.app.add_handler(MessageHandler(
+            filters.Document.MimeType("text/csv") | filters.Document.MimeType("text/plain"),
+            admin_handlers.handle_csv_file_upload
         ))
         
         # Superadmin handlers
