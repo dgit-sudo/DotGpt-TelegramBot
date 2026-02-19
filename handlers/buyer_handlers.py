@@ -114,8 +114,8 @@ async def show_product_details(update: Update, context: ContextTypes.DEFAULT_TYP
     language = context.user_data.get('language', 'en')
     query = update.callback_query
     
-    # Find product
-    products = context.user_data.get('products', [])
+    # Find product from database (fallback-safe for stale callbacks/session resets)
+    products = get_all_active_products()
     product = next((p for p in products if p.id == product_id), None)
     
     if not product:
@@ -180,6 +180,7 @@ async def handle_product_action(update: Update, context: ContextTypes.DEFAULT_TY
     if action[1] == "view":
         product_id = int(action[2])
         await show_product_details(update, context, product_id)
+        await query.answer()
     
     elif action[1] == "contact":
         product_id = int(action[2])
@@ -198,6 +199,7 @@ async def handle_product_action(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Show payment details first
         await show_payment_details_before_chat(update, context, language)
+        await query.answer()
 
 async def show_payment_details_before_chat(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str):
     """Show payment details and warning before opening chat"""

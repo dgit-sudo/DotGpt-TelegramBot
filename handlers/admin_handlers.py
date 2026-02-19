@@ -65,7 +65,6 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE, l
         [InlineKeyboardButton(get_string("manage_users", language), callback_data="admin_manage_users")],
         [InlineKeyboardButton(get_string("manage_suppliers_admin", language), callback_data="admin_suppliers")],
         [InlineKeyboardButton(get_string("manage_products_admin", language), callback_data="admin_manage_products")],
-        [InlineKeyboardButton("� Import Products (CSV)", callback_data="admin_csv_import")],
         [InlineKeyboardButton("�🔍 " + get_string("pending_sales", language), callback_data="admin_pending_sales")],
         [InlineKeyboardButton(get_string("support", language), callback_data="admin_support_chats")],
         [InlineKeyboardButton(get_string("system_stats", language), callback_data="admin_stats")],
@@ -224,8 +223,6 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_manage_users(update, context)
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
-    elif action == "csv" and action_parts[2] == "import":
-        await request_csv_upload(update, context)
     elif action == "add" and action_parts[2] == "product":
         if len(action_parts) == 3:
             await show_add_product_form(update, context)
