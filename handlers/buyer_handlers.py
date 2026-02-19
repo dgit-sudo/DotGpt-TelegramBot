@@ -191,6 +191,11 @@ async def handle_product_action(update: Update, context: ContextTypes.DEFAULT_TY
         if not buyer:
             await query.answer(get_string("unauthorized", language), show_alert=True)
             return
+
+        current_user_supplier = get_supplier(user_id)
+        if current_user_supplier and current_user_supplier.id == supplier_id:
+            await query.answer("❌ You cannot buy products from your own seller account.", show_alert=True)
+            return
         
         # Store for use in next function
         context.user_data['pending_chat_buyer_id'] = buyer.id

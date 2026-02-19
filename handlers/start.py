@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from strings import STRINGS
 from translation_utils import get_all_languages, get_language_name
 from config import SUPPORTED_LANGUAGES
+from database_helpers import get_buyer, get_chat
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,6 +11,15 @@ logger = logging.getLogger(__name__)
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start command handler - Show language selection with all world languages"""
     user = update.effective_user
+
+    buyer = get_buyer(user.id)
+    current_chat_id = context.user_data.get('current_chat')
+    if buyer and current_chat_id:
+        active_chat = get_chat(current_chat_id)
+        if active_chat and active_chat.active and active_chat.buyer_id == buyer.id:
+            await update.message.reply_text("💬 You already have an active chat. Wait for the seller to end it.")
+            return
+        context.user_data.pop('current_chat', None)
     
     # Store user info in context
     context.user_data['user_id'] = user.id

@@ -275,6 +275,12 @@ def get_or_create_chat(buyer_id: int, supplier_id: int, product_id: int = None) 
         )
         db.add(chat)
         db.commit()
+    else:
+        if not chat.active:
+            chat.active = True
+        if product_id and not chat.product_id:
+            chat.product_id = product_id
+        db.commit()
     db.refresh(chat)
     db.close()
     return chat
@@ -282,9 +288,28 @@ def get_or_create_chat(buyer_id: int, supplier_id: int, product_id: int = None) 
 def get_chat(chat_id: int) -> Optional[Chat]:
     """Get chat by ID"""
     db = SessionLocal()
-    chat = db.query(Chat).filter(Chat.id == chat_id).first()
+    chat = db.query(Chat).options(
+        selectinload(Chat.buyer),
+        selectinload(Chat.supplier),
+        selectinload(Chat.messages),
+    ).filter(Chat.id == chat_id).first()
     db.close()
     return chat
+
+def end_chat(chat_id: int, supplier_id: int) -> bool:
+    """End chat (supplier only for their own chat)."""
+    db = SessionLocal()
+    chat = db.query(Chat).filter(
+        and_(Chat.id == chat_id, Chat.supplier_id == supplier_id)
+    ).first()
+    if not chat:
+        db.close()
+        return False
+
+    chat.active = False
+    db.commit()
+    db.close()
+    return True
 
 def get_buyer_chats(buyer_id: int) -> List[Chat]:
     """Get all chats for a buyer"""

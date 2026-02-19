@@ -17,6 +17,7 @@ from database_helpers import (
     create_sale,
     submit_sale_proof,
     get_products_by_supplier,
+    end_chat,
 )
 from sqlalchemy import and_
 import logging
@@ -157,6 +158,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(get_string("not_found", language))
         return
 
+    if not chat.active:
+        context.user_data.pop('current_chat', None)
+        await update.message.reply_text("💬 This chat was ended by the seller. Use /start to continue.")
+        return
+
     if has_media(update.message):
         await update.message.reply_text(get_string("media_disallowed", language))
         return
@@ -261,6 +267,17 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     if supplier and chat.supplier_id != supplier.id:
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
+
+    if not chat.active:
+        context.user_data.pop('current_chat', None)
+        await query.answer("This chat has ended.", show_alert=True)
+        if buyer:
+            from handlers.buyer_handlers import show_buyer_menu
+            await show_buyer_menu(update, context)
+        else:
+            from handlers.supplier_handlers import show_supplier_inquiries
+            await show_supplier_inquiries(update, context)
+        return
     
     # Set current chat
     context.user_data['current_chat'] = chat_id
@@ -330,6 +347,7 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     # Add sale done button for suppliers
     if supplier:
         buttons.append([InlineKeyboardButton(get_string("mark_sale_done", language), callback_data=f"sale_product_select_{chat_id}")])
+        buttons.append([InlineKeyboardButton("🛑 End Chat", callback_data=f"chat_end_{chat_id}")])
     
     buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="chat_back")])
     
@@ -363,6 +381,21 @@ async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if action == "open":
         chat_id = int(query.data.split("_")[2])
         await show_chat_view(update, context, chat_id)
+    elif action == "end":
+        user_id = update.effective_user.id
+        chat_id = int(query.data.split("_")[2])
+        supplier = get_supplier(user_id)
+        if not supplier:
+            await query.answer(get_string("unauthorized", language), show_alert=True)
+            return
+
+        if not end_chat(chat_id, supplier.id):
+            await query.answer(get_string("not_found", language), show_alert=True)
+            return
+
+        context.user_data.pop('current_chat', None)
+        from handlers.supplier_handlers import show_supplier_inquiries
+        await show_supplier_inquiries(update, context)
     elif action == "back":
         user_id = update.effective_user.id
         buyer = get_buyer(user_id)
@@ -585,6 +618,21 @@ async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if action == "open":
         chat_id = int(query.data.split("_")[2])
         await show_chat_view(update, context, chat_id)
+    elif action == "end":
+        user_id = update.effective_user.id
+        chat_id = int(query.data.split("_")[2])
+        supplier = get_supplier(user_id)
+        if not supplier:
+            await query.answer(get_string("unauthorized", language), show_alert=True)
+            return
+
+        if not end_chat(chat_id, supplier.id):
+            await query.answer(get_string("not_found", language), show_alert=True)
+            return
+
+        context.user_data.pop('current_chat', None)
+        from handlers.supplier_handlers import show_supplier_inquiries
+        await show_supplier_inquiries(update, context)
     elif action == "back":
         user_id = update.effective_user.id
         buyer = get_buyer(user_id)
