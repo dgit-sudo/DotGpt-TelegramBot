@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from strings import get_string
 from database_helpers import (
     get_all_active_products,
+    get_active_product_with_prices,
     get_product_price,
     get_supplier,
     get_buyer_chats,
@@ -114,9 +115,8 @@ async def show_product_details(update: Update, context: ContextTypes.DEFAULT_TYP
     language = context.user_data.get('language', 'en')
     query = update.callback_query
     
-    # Find product from database (fallback-safe for stale callbacks/session resets)
-    products = get_all_active_products()
-    product = next((p for p in products if p.id == product_id), None)
+    # Load product with related prices/suppliers eagerly to avoid detached lazy-load issues
+    product = get_active_product_with_prices(product_id)
     
     if not product:
         await query.answer(get_string("not_found", language), show_alert=True)

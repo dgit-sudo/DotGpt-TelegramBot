@@ -1,6 +1,7 @@
 from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage, PaymentDetails, Sale, SaleProof, DeletedMessage
 from typing import List, Optional
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 def get_or_create_buyer(telegram_id: int, username: str = None, first_name: str = None, last_name: str = None, language: str = "en") -> Buyer:
@@ -222,6 +223,23 @@ def get_all_active_products() -> List[Product]:
     products = db.query(Product).filter(Product.active == True).all()
     db.close()
     return products
+
+def get_active_product_with_prices(product_id: int) -> Optional[Product]:
+    """Get one active product with prices and suppliers eagerly loaded"""
+    db = SessionLocal()
+    product = (
+        db.query(Product)
+        .options(
+            selectinload(Product.prices).selectinload(ProductPrice.supplier)
+        )
+        .filter(
+            Product.id == product_id,
+            Product.active == True
+        )
+        .first()
+    )
+    db.close()
+    return product
 
 def get_product_price(product_id: int, supplier_id: int) -> Optional[ProductPrice]:
     """Get product price for supplier"""
