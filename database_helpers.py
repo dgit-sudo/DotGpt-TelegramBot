@@ -275,6 +275,7 @@ def get_or_create_chat(buyer_id: int, supplier_id: int, product_id: int = None) 
         )
         db.add(chat)
         db.commit()
+    db.refresh(chat)
     db.close()
     return chat
 
