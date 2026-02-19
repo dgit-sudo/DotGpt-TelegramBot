@@ -85,6 +85,13 @@ def get_buyer(telegram_id: int) -> Optional[Buyer]:
     db.close()
     return buyer
 
+def get_buyer_by_id(buyer_id: int) -> Optional[Buyer]:
+    """Get buyer by internal ID"""
+    db = SessionLocal()
+    buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
+    db.close()
+    return buyer
+
 def get_products_by_supplier(supplier_id: int) -> List[Product]:
     """Get all products for a supplier"""
     db = SessionLocal()

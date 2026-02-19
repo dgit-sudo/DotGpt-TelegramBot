@@ -7,6 +7,7 @@ from database_helpers import (
     get_chat_messages,
     save_chat_message,
     get_buyer,
+    get_buyer_by_id,
     get_supplier,
     get_support_chat,
     get_support_messages,
@@ -204,12 +205,14 @@ async def show_support_chat_view(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer(get_string("not_found", language), show_alert=True)
         return
 
-    buyer = get_buyer(user_id)
-    if buyer and chat.buyer_id != buyer.id:
+    current_buyer = get_buyer(user_id)
+    if current_buyer and chat.buyer_id != current_buyer.id:
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
 
-    if not buyer and not is_admin(user_id):
+    admin_view = is_admin(user_id)
+
+    if not current_buyer and not admin_view:
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
 
@@ -217,9 +220,17 @@ async def show_support_chat_view(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data['current_support_chat'] = chat_id
 
     messages = get_support_messages(chat_id)
+    support_buyer = get_buyer_by_id(chat.buyer_id)
 
     message_text = f"🆘 {get_string('support', language)} #{chat_id}\n"
-    message_text += get_string("buyer_profile_hidden", language) + "\n\n"
+    if admin_view and support_buyer:
+        buyer_name = " ".join(filter(None, [support_buyer.first_name, support_buyer.last_name])) or "N/A"
+        buyer_username = f"@{support_buyer.username}" if support_buyer.username else "N/A"
+        message_text += f"👤 Buyer Profile: {buyer_name}\n"
+        message_text += f"🆔 Buyer Telegram ID: {support_buyer.telegram_id}\n"
+        message_text += f"🔗 Username: {buyer_username}\n\n"
+    else:
+        message_text += get_string("buyer_profile_hidden", language) + "\n\n"
     message_text += "📜 Messages:\n"
     message_text += "-" * 30 + "\n"
 
@@ -415,10 +426,12 @@ async def show_support_chats(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
 
     buyer = get_buyer(user_id)
+    admin_view = False
     if buyer:
         chats = get_support_chats_for_buyer(buyer.id)
         back_callback = "buyer_menu"
     elif is_admin(user_id):
+        admin_view = True
         chats = get_all_support_chats()
         back_callback = "admin_menu"
     else:
@@ -433,7 +446,14 @@ async def show_support_chats(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         buttons = []
         for chat in chats:
-            message += f"Support #{chat.id}\n"
+            message += f"Support #{chat.id}"
+            if admin_view:
+                support_buyer = get_buyer_by_id(chat.buyer_id)
+                if support_buyer:
+                    buyer_name = " ".join(filter(None, [support_buyer.first_name, support_buyer.last_name])) or "N/A"
+                    buyer_username = f"@{support_buyer.username}" if support_buyer.username else "N/A"
+                    message += f" - {buyer_name} | ID: {support_buyer.telegram_id} | {buyer_username}"
+            message += "\n"
             buttons.append([
                 InlineKeyboardButton(f"🆘 Support #{chat.id}", callback_data=f"support_open_{chat.id}")
             ])
