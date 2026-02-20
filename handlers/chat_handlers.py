@@ -251,7 +251,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.warning(f"Failed to send buyer chat notification: {e}")
     
-    await update.message.reply_text(get_string("message_sent", language))
+    if sender_type == "supplier":
+        await update.message.reply_text(
+            get_string("message_sent", language),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(get_string("back", language), callback_data="chat_back")]
+            ])
+        )
+    else:
+        await update.message.reply_text(get_string("message_sent", language))
 
 async def show_support_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
     """Show support chat conversation"""
@@ -487,6 +495,12 @@ async def handle_chat_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "back":
         user_id = update.effective_user.id
         buyer = get_buyer(user_id)
+        supplier = get_supplier(user_id)
+
+        # Seller can temporarily leave active chat and resume later
+        if supplier:
+            context.user_data.pop('current_chat', None)
+
         if buyer:
             from handlers.buyer_handlers import show_buyer_menu
             await show_buyer_menu(update, context)
