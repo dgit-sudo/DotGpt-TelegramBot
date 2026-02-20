@@ -1,6 +1,6 @@
 from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage, PaymentDetails, Sale, SaleProof, DeletedMessage
 from typing import List, Optional
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
@@ -319,16 +319,22 @@ def end_chat(chat_id: int, supplier_id: int) -> bool:
     return True
 
 def get_buyer_chats(buyer_id: int) -> List[Chat]:
-    """Get all chats for a buyer"""
+    """Get all active chats for a buyer"""
     db = SessionLocal()
-    chats = db.query(Chat).filter(Chat.buyer_id == buyer_id).all()
+    chats = db.query(Chat).filter(
+        Chat.buyer_id == buyer_id,
+        Chat.active == True
+    ).all()
     db.close()
     return chats
 
 def get_supplier_chats(supplier_id: int) -> List[Chat]:
-    """Get all chats for a supplier"""
+    """Get all active chats for a supplier"""
     db = SessionLocal()
-    chats = db.query(Chat).filter(Chat.supplier_id == supplier_id).all()
+    chats = db.query(Chat).filter(
+        Chat.supplier_id == supplier_id,
+        Chat.active == True
+    ).all()
     db.close()
     return chats
 
@@ -356,9 +362,32 @@ def get_chat_messages(chat_id: int, limit: int = 50) -> List[ChatMessage]:
     return list(reversed(messages))
 
 def get_all_chats():
-    """Get all chats (for admin)"""
+    """Get all active chats (for admin dashboards)"""
     db = SessionLocal()
-    chats = db.query(Chat).all()
+    chats = db.query(Chat).filter(Chat.active == True).all()
+    db.close()
+    return chats
+
+def get_historical_chats() -> List[Chat]:
+    """Get historical chats: ended chats and chats with sale records"""
+    db = SessionLocal()
+
+    ended_chat_ids = {
+        row[0]
+        for row in db.query(Chat.id).filter(Chat.active == False).all()
+    }
+    sale_chat_ids = {
+        row[0]
+        for row in db.query(Sale.chat_id).distinct().all()
+        if row[0] is not None
+    }
+
+    historical_ids = ended_chat_ids.union(sale_chat_ids)
+    if not historical_ids:
+        db.close()
+        return []
+
+    chats = db.query(Chat).filter(Chat.id.in_(historical_ids)).order_by(Chat.updated_at.desc()).all()
     db.close()
     return chats
 
@@ -385,17 +414,50 @@ def get_support_chat(chat_id: int) -> Optional[SupportChat]:
     db.close()
     return chat
 
-def get_support_chats_for_buyer(buyer_id: int) -> List[SupportChat]:
-    """Get support chats for buyer"""
+def end_support_chat(chat_id: int) -> bool:
+    """End a support chat"""
     db = SessionLocal()
-    chats = db.query(SupportChat).filter(SupportChat.buyer_id == buyer_id).all()
+    chat = db.query(SupportChat).filter(SupportChat.id == chat_id).first()
+    if not chat:
+        db.close()
+        return False
+
+    chat.active = False
+    db.commit()
+    db.close()
+    return True
+
+def get_support_chats_for_buyer(buyer_id: int) -> List[SupportChat]:
+    """Get active support chats for buyer"""
+    db = SessionLocal()
+    chats = db.query(SupportChat).filter(
+        SupportChat.buyer_id == buyer_id,
+        SupportChat.active == True
+    ).all()
+    db.close()
+    return chats
+
+def get_historical_support_chats_for_buyer(buyer_id: int) -> List[SupportChat]:
+    """Get ended support chats for buyer"""
+    db = SessionLocal()
+    chats = db.query(SupportChat).filter(
+        SupportChat.buyer_id == buyer_id,
+        SupportChat.active == False
+    ).all()
     db.close()
     return chats
 
 def get_all_support_chats() -> List[SupportChat]:
-    """Get all support chats (admin view)"""
+    """Get all active support chats (admin view)"""
     db = SessionLocal()
-    chats = db.query(SupportChat).all()
+    chats = db.query(SupportChat).filter(SupportChat.active == True).all()
+    db.close()
+    return chats
+
+def get_all_historical_support_chats() -> List[SupportChat]:
+    """Get all ended support chats (admin view)"""
+    db = SessionLocal()
+    chats = db.query(SupportChat).filter(SupportChat.active == False).all()
     db.close()
     return chats
 
@@ -513,6 +575,70 @@ def get_system_stats():
     }
     db.close()
     return stats
+
+def get_system_stats_usernames(limit: int = 10) -> dict:
+    """Get buyer/seller username lists for admin stats"""
+    db = SessionLocal()
+    buyers = db.query(Buyer).order_by(Buyer.created_at.desc()).limit(limit).all()
+    suppliers = db.query(Supplier).order_by(Supplier.created_at.desc()).limit(limit).all()
+    db.close()
+    return {
+        "buyers": buyers,
+        "suppliers": suppliers,
+    }
+
+def get_sales_leaderboard(limit: int = 5) -> dict:
+    """Get top sellers and buyers by approved sales count"""
+    db = SessionLocal()
+
+    top_sellers_rows = (
+        db.query(Sale.supplier_id, func.count(Sale.id).label("sales_count"))
+        .filter(Sale.status == "approved")
+        .group_by(Sale.supplier_id)
+        .order_by(func.count(Sale.id).desc())
+        .limit(limit)
+        .all()
+    )
+
+    top_buyers_rows = (
+        db.query(Sale.buyer_id, func.count(Sale.id).label("sales_count"))
+        .filter(Sale.status == "approved")
+        .group_by(Sale.buyer_id)
+        .order_by(func.count(Sale.id).desc())
+        .limit(limit)
+        .all()
+    )
+
+    top_sellers = []
+    for supplier_id, sales_count in top_sellers_rows:
+        supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+        if supplier:
+            top_sellers.append({"supplier": supplier, "sales_count": sales_count})
+
+    top_buyers = []
+    for buyer_id, sales_count in top_buyers_rows:
+        buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
+        if buyer:
+            top_buyers.append({"buyer": buyer, "sales_count": sales_count})
+
+    db.close()
+    return {
+        "top_sellers": top_sellers,
+        "top_buyers": top_buyers,
+    }
+
+def search_user_by_telegram_id(telegram_id: int) -> dict:
+    """Search buyer/seller by telegram id for admin moderation"""
+    db = SessionLocal()
+    buyer = db.query(Buyer).filter(Buyer.telegram_id == telegram_id).first()
+    supplier = db.query(Supplier).filter(Supplier.telegram_id == telegram_id).first()
+    admin = db.query(AdminUser).filter(AdminUser.telegram_id == telegram_id).first()
+    db.close()
+    return {
+        "buyer": buyer,
+        "supplier": supplier,
+        "admin": admin,
+    }
 # =========== ADMIN MANAGEMENT FUNCTIONS ===========
 
 def get_superadmin() -> Optional[AdminUser]:

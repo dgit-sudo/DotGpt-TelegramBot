@@ -484,10 +484,10 @@ async def show_supplier_inquiries(update: Update, context: ContextTypes.DEFAULT_
         for chat in chats:
             product = get_product_by_id(chat.product_id) if chat.product_id else None
             product_name = product.name if product else "General"
-            message += f"💬 Chat #{chat.id} - Product: {product_name}\n"
+            message += f"{product_name}\n"
 
             buttons.append([
-                InlineKeyboardButton(f"💬 Chat #{chat.id}", callback_data=f"chat_open_{chat.id}")
+                InlineKeyboardButton(f"💬 {product_name}", callback_data=f"chat_open_{chat.id}")
             ])
 
         buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="supplier_dashboard")])

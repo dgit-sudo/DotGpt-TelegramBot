@@ -13,12 +13,16 @@ from database_helpers import (
     get_support_messages,
     save_support_message,
     get_all_support_chats,
+    get_all_historical_support_chats,
     get_support_chats_for_buyer,
+    get_historical_support_chats_for_buyer,
+    end_support_chat,
     is_admin,
     create_sale,
     submit_sale_proof,
     get_products_by_supplier,
     end_chat,
+    get_product_by_id,
 )
 from sqlalchemy import and_
 import logging
@@ -112,6 +116,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = get_support_chat(current_support_chat_id)
         if not chat:
             await update.message.reply_text(get_string("not_found", language))
+            return
+
+        if not chat.active:
+            context.user_data.pop('current_support_chat', None)
+            await update.message.reply_text("🆘 This SOS chat has ended. Open a new SOS chat from support menu.")
             return
 
         buyer = get_buyer(user_id)
@@ -217,7 +226,10 @@ async def show_support_chat_view(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     context.user_data['current_chat_type'] = 'support'
-    context.user_data['current_support_chat'] = chat_id
+    if chat.active:
+        context.user_data['current_support_chat'] = chat_id
+    else:
+        context.user_data.pop('current_support_chat', None)
 
     messages = get_support_messages(chat_id)
     support_buyer = get_buyer_by_id(chat.buyer_id)
@@ -242,11 +254,15 @@ async def show_support_chat_view(update: Update, context: ContextTypes.DEFAULT_T
             message_text += f"\n{sender}: {msg.message}\n"
 
     message_text += "\n" + "=" * 30 + "\n"
-    message_text += f"\n{get_string('type_message', language)}\n"
+    if chat.active:
+        message_text += f"\n{get_string('type_message', language)}\n"
+    else:
+        message_text += "\nThis SOS chat is ended (read-only).\n"
 
-    buttons = [
-        [InlineKeyboardButton(get_string("back", language), callback_data="support_back")],
-    ]
+    buttons = []
+    if chat.active:
+        buttons.append([InlineKeyboardButton("🛑 End SOS Chat", callback_data=f"support_end_{chat_id}")])
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="support_back")])
 
     reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -457,12 +473,61 @@ async def show_support_chats(update: Update, context: ContextTypes.DEFAULT_TYPE)
             buttons.append([
                 InlineKeyboardButton(f"🆘 Support #{chat.id}", callback_data=f"support_open_{chat.id}")
             ])
+        buttons.append([InlineKeyboardButton("🕘 Historical SOS Chats", callback_data="support_history")])
         buttons.append([InlineKeyboardButton(get_string("back", language), callback_data=back_callback)])
+
+    if not chats:
+        buttons.insert(0, [InlineKeyboardButton("🕘 Historical SOS Chats", callback_data="support_history")])
 
     reply_markup = InlineKeyboardMarkup(buttons)
     await query.edit_message_text(
         text=message,
         reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    await query.answer()
+
+async def show_historical_support_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show ended SOS chats for buyer/admin"""
+    user_id = update.effective_user.id
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    buyer = get_buyer(user_id)
+    admin_view = False
+    if buyer:
+        chats = get_historical_support_chats_for_buyer(buyer.id)
+        back_callback = "support_back"
+    elif is_admin(user_id):
+        admin_view = True
+        chats = get_all_historical_support_chats()
+        back_callback = "support_back"
+    else:
+        await query.answer(get_string("unauthorized", language), show_alert=True)
+        return
+
+    message = "🕘 Historical SOS Chats\n\n"
+    if not chats:
+        message += get_string("no_chats", language)
+        buttons = [[InlineKeyboardButton(get_string("back", language), callback_data=back_callback)]]
+    else:
+        buttons = []
+        for chat in chats:
+            message += f"Ended SOS #{chat.id}"
+            if admin_view:
+                support_buyer = get_buyer_by_id(chat.buyer_id)
+                if support_buyer:
+                    buyer_name = " ".join(filter(None, [support_buyer.first_name, support_buyer.last_name])) or "N/A"
+                    message += f" - {buyer_name}"
+            message += "\n"
+            buttons.append([
+                InlineKeyboardButton(f"📂 SOS #{chat.id}", callback_data=f"support_open_{chat.id}")
+            ])
+        buttons.append([InlineKeyboardButton(get_string("back", language), callback_data=back_callback)])
+
+    await query.edit_message_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons),
         parse_mode='Markdown'
     )
     await query.answer()
@@ -478,6 +543,30 @@ async def handle_support_action(update: Update, context: ContextTypes.DEFAULT_TY
     if action == "open":
         chat_id = int(parts[2])
         await show_support_chat_view(update, context, chat_id)
+    elif action == "end":
+        chat_id = int(parts[2])
+        chat = get_support_chat(chat_id)
+        if not chat:
+            await query.answer(get_string("not_found", language), show_alert=True)
+            return
+
+        buyer = get_buyer(query.from_user.id)
+        if buyer and chat.buyer_id != buyer.id:
+            await query.answer(get_string("unauthorized", language), show_alert=True)
+            return
+        if not buyer and not is_admin(query.from_user.id):
+            await query.answer(get_string("unauthorized", language), show_alert=True)
+            return
+
+        if not end_support_chat(chat_id):
+            await query.answer(get_string("error", language), show_alert=True)
+            return
+
+        context.user_data.pop('current_support_chat', None)
+        await query.answer("✅ SOS chat ended", show_alert=True)
+        await show_support_chats(update, context)
+    elif action == "history":
+        await show_historical_support_chats(update, context)
     elif action == "back":
         if is_admin(query.from_user.id):
             from handlers.admin_handlers import show_admin_panel
@@ -512,9 +601,11 @@ async def show_buyer_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         buttons = []
         for chat in chats:
-            message += f"Chat #{chat.id}\n"
+            product = get_product_by_id(chat.product_id) if chat.product_id else None
+            product_name = product.name if product else "General"
+            message += f"{product_name}\n"
             buttons.append([
-                InlineKeyboardButton(f"💬 Chat #{chat.id}", callback_data=f"chat_open_{chat.id}")
+                InlineKeyboardButton(f"💬 {product_name}", callback_data=f"chat_open_{chat.id}")
             ])
         
         buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="buyer_menu")])

@@ -5,9 +5,13 @@ from database_helpers import (
     get_all_suppliers,
     get_unverified_suppliers,
     get_all_chats,
+    get_historical_chats,
     get_chat,
     get_chat_messages,
     get_system_stats,
+    get_system_stats_usernames,
+    get_sales_leaderboard,
+    search_user_by_telegram_id,
     verify_supplier,
     reject_supplier,
     block_user,
@@ -23,7 +27,9 @@ from database_helpers import (
     delete_product,
     get_product_by_id,
     get_buyer_by_id,
+    get_buyer,
     get_supplier_by_id,
+    get_supplier,
     attach_product_to_supplier,
     get_verified_suppliers,
     get_out_of_stock_suppliers,
@@ -66,6 +72,7 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE, l
     
     keyboard.extend([
         [InlineKeyboardButton(get_string("view_all_chats", language), callback_data="admin_view_chats")],
+        [InlineKeyboardButton("🕘 Historical Chats", callback_data="admin_historical_chats")],
         [InlineKeyboardButton(get_string("manage_users", language), callback_data="admin_manage_users")],
         [InlineKeyboardButton(get_string("manage_suppliers_admin", language), callback_data="admin_suppliers")],
         [InlineKeyboardButton(get_string("manage_products_admin", language), callback_data="admin_manage_products")],
@@ -113,11 +120,21 @@ async def show_all_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message += f"Total: {len(chats)} chats\n\n"
         
         for chat in chats:
-            status = "✅ Active" if chat.active else "❌ Inactive"
-            message += f"Chat #{chat.id} - Buyer: {chat.buyer_id}, Supplier: {chat.supplier_id} - {status}\n"
+            buyer = get_buyer_by_id(chat.buyer_id)
+            supplier = get_supplier_by_id(chat.supplier_id)
+            product = get_product_by_id(chat.product_id) if chat.product_id else None
+
+            buyer_label = f"@{buyer.username}" if buyer and buyer.username else f"Buyer {chat.buyer_id}"
+            seller_label = supplier.company_name if supplier else f"Seller {chat.supplier_id}"
+            product_label = product.name if product else "General"
+
+            message += f"{buyer_label} ↔ {seller_label} • {product_label}\n"
             
             buttons.append([
-                InlineKeyboardButton(f"📊 Chat #{chat.id}", callback_data=f"admin_chat_{chat.id}")
+                InlineKeyboardButton(
+                    f"📊 {buyer_label} • {product_label}",
+                    callback_data=f"admin_chat_{chat.id}"
+                )
             ])
         
         buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
@@ -126,8 +143,7 @@ async def show_all_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         text=message,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
+        reply_markup=reply_markup
     )
     await query.answer()
 
@@ -137,6 +153,9 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
     stats = get_system_stats()
+    details = get_system_stats_usernames(limit=10)
+    buyers = details.get("buyers", [])
+    suppliers = details.get("suppliers", [])
     
     message = f"""
 📊 {get_string("system_stats", language)}
@@ -147,8 +166,26 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📦 Total Products: {stats['total_products']}
 💭 Total Messages: {stats['total_messages']}
 """
+
+    message += "\n👥 Recent Buyer Usernames:\n"
+    if buyers:
+        for buyer in buyers:
+            buyer_username = f"@{buyer.username}" if buyer.username else "No username"
+            message += f"• {buyer_username} (ID: {buyer.telegram_id})\n"
+    else:
+        message += "• None\n"
+
+    message += "\n🏪 Recent Seller Usernames:\n"
+    if suppliers:
+        for supplier in suppliers:
+            seller_username = f"@{supplier.username}" if supplier.username else "No username"
+            message += f"• {supplier.company_name} ({seller_username}, ID: {supplier.telegram_id})\n"
+    else:
+        message += "• None\n"
     
     buttons = [
+        [InlineKeyboardButton("🏆 Sales Leaderboard", callback_data="admin_stats_leaderboard")],
+        [InlineKeyboardButton("🔎 Search User (Ban/Unban)", callback_data="admin_stats_search")],
         [InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")]
     ]
     
@@ -158,6 +195,170 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=message,
         reply_markup=reply_markup,
         parse_mode='Markdown'
+    )
+    await query.answer()
+
+async def show_sales_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show leaderboard for top sellers and buyers by approved sales"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    leaderboard = get_sales_leaderboard(limit=10)
+    top_sellers = leaderboard.get("top_sellers", [])
+    top_buyers = leaderboard.get("top_buyers", [])
+
+    message = "🏆 Sales Leaderboard\n\n"
+    message += "Top Sellers (Approved Sales):\n"
+    if not top_sellers:
+        message += "• No sales yet\n"
+    else:
+        for index, item in enumerate(top_sellers, 1):
+            supplier = item["supplier"]
+            sales_count = item["sales_count"]
+            seller_username = f"@{supplier.username}" if supplier.username else "No username"
+            message += f"{index}. {supplier.company_name} ({seller_username}) - {sales_count}\n"
+
+    message += "\nTop Buyers (Approved Purchases):\n"
+    if not top_buyers:
+        message += "• No purchases yet\n"
+    else:
+        for index, item in enumerate(top_buyers, 1):
+            buyer = item["buyer"]
+            sales_count = item["sales_count"]
+            buyer_name = " ".join(filter(None, [buyer.first_name, buyer.last_name])) or "Unknown"
+            buyer_username = f"@{buyer.username}" if buyer.username else "No username"
+            message += f"{index}. {buyer_name} ({buyer_username}) - {sales_count}\n"
+
+    buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="admin_stats")]]
+    await query.edit_message_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+    await query.answer()
+
+async def prompt_user_search_for_moderation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Prompt admin for telegram id to ban/unban"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    context.user_data['stats_user_search_mode'] = True
+    await query.edit_message_text(
+        text="🔎 Search user for Ban/Unban\n\nSend Telegram ID (numbers only).",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_string("back", language), callback_data="admin_stats")]
+        ])
+    )
+    await query.answer()
+
+async def show_user_moderation_result(update: Update, context: ContextTypes.DEFAULT_TYPE, telegram_id: int):
+    """Show moderation options for searched user"""
+    language = context.user_data.get('language', 'en')
+    result = search_user_by_telegram_id(telegram_id)
+
+    admin_user = result.get("admin")
+    if admin_user and (admin_user.is_superadmin or admin_user.is_active):
+        await update.message.reply_text("❌ Admins/Superadmins cannot be banned/unbanned here.")
+        return
+
+    buyer = result.get("buyer")
+    supplier = result.get("supplier")
+
+    if not buyer and not supplier:
+        await update.message.reply_text("❌ User not found.")
+        return
+
+    message = f"👤 Search Result for {telegram_id}\n\n"
+    buttons = []
+
+    if buyer:
+        buyer_username = f"@{buyer.username}" if buyer.username else "No username"
+        buyer_status = "Active" if buyer.active else "Blocked"
+        message += f"Buyer: {buyer_username} ({buyer_status})\n"
+        buyer_action = "ban" if buyer.active else "unban"
+        buyer_label = "🚫 Ban Buyer" if buyer.active else "✅ Unban Buyer"
+        buttons.append([
+            InlineKeyboardButton(
+                buyer_label,
+                callback_data=f"admin_stats_toggle_buyer_{telegram_id}_{buyer_action}"
+            )
+        ])
+
+    if supplier:
+        supplier_username = f"@{supplier.username}" if supplier.username else "No username"
+        supplier_status = "Active" if supplier.active else "Blocked"
+        message += f"Seller: {supplier.company_name} ({supplier_username}, {supplier_status})\n"
+        supplier_action = "ban" if supplier.active else "unban"
+        supplier_label = "🚫 Ban Seller" if supplier.active else "✅ Unban Seller"
+        buttons.append([
+            InlineKeyboardButton(
+                supplier_label,
+                callback_data=f"admin_stats_toggle_supplier_{telegram_id}_{supplier_action}"
+            )
+        ])
+
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_stats")])
+
+    await update.message.reply_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+async def toggle_user_access_from_stats(update: Update, context: ContextTypes.DEFAULT_TYPE, user_type: str, telegram_id: int, action: str):
+    """Toggle buyer/seller access from stats moderation panel"""
+    query = update.callback_query
+
+    admin_user = get_admin(telegram_id)
+    if admin_user and (admin_user.is_superadmin or admin_user.is_active):
+        await query.answer("❌ Admins/Superadmins cannot be modified.", show_alert=True)
+        return
+
+    if action == "ban":
+        block_user(telegram_id, user_type)
+        await query.answer("✅ User banned", show_alert=True)
+    else:
+        unblock_user(telegram_id, user_type)
+        await query.answer("✅ User unbanned", show_alert=True)
+
+    await show_system_stats(update, context)
+
+async def show_historical_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show historical chats (ended or sale-related) for admin view"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    chats = get_historical_chats()
+    message = "🕘 Historical Chats\n\n"
+
+    if not chats:
+        message += get_string("no_chats", language)
+        buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")]]
+    else:
+        buttons = []
+        message += f"Total: {len(chats)} chats\n\n"
+
+        for chat in chats:
+            buyer = get_buyer_by_id(chat.buyer_id)
+            supplier = get_supplier_by_id(chat.supplier_id)
+            product = get_product_by_id(chat.product_id) if chat.product_id else None
+
+            buyer_label = f"@{buyer.username}" if buyer and buyer.username else f"Buyer {chat.buyer_id}"
+            seller_label = supplier.company_name if supplier else f"Seller {chat.supplier_id}"
+            product_label = product.name if product else "General"
+            state_label = "Ended" if not chat.active else "Sale-linked"
+
+            message += f"{buyer_label} ↔ {seller_label} • {product_label} ({state_label})\n"
+            buttons.append([
+                InlineKeyboardButton(
+                    f"📂 {buyer_label} • {product_label}",
+                    callback_data=f"admin_chat_{chat.id}"
+                )
+            ])
+
+        buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")])
+
+    await query.edit_message_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
     await query.answer()
 
@@ -295,8 +496,20 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if action == "view" and action_parts[2] == "chats":
         await show_all_chats(update, context)
+    elif action == "historical" and action_parts[2] == "chats":
+        await show_historical_chats(update, context)
     elif action == "stats":
-        await show_system_stats(update, context)
+        if len(action_parts) == 2:
+            await show_system_stats(update, context)
+        elif action_parts[2] == "leaderboard":
+            await show_sales_leaderboard(update, context)
+        elif action_parts[2] == "search":
+            await prompt_user_search_for_moderation(update, context)
+        elif action_parts[2] == "toggle":
+            user_type = action_parts[3]
+            target_telegram_id = int(action_parts[4])
+            toggle_action = action_parts[5]
+            await toggle_user_access_from_stats(update, context, user_type, target_telegram_id, toggle_action)
     elif action == "menu":
         await show_admin_panel(update, context, language)
     elif action == "suppliers":
@@ -1016,6 +1229,23 @@ async def process_add_admin_id(update: Update, context: ContextTypes.DEFAULT_TYP
             flow['step'] = "supplier"
             await show_new_product_supplier_select(update, context)
             return
+
+    if context.user_data.get('stats_user_search_mode'):
+        if not is_admin(user_id):
+            await update.message.reply_text(get_string("unauthorized", language))
+            context.user_data.pop('stats_user_search_mode', None)
+            return
+
+        text = update.message.text.strip()
+        try:
+            target_telegram_id = int(text)
+        except ValueError:
+            await update.message.reply_text("❌ Please send a valid Telegram ID (numbers only).")
+            return
+
+        context.user_data.pop('stats_user_search_mode', None)
+        await show_user_moderation_result(update, context, target_telegram_id)
+        return
 
     if context.user_data.get('admin_restock'):
         if not is_admin(user_id):
