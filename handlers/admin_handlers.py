@@ -5,6 +5,8 @@ from database_helpers import (
     get_all_suppliers,
     get_unverified_suppliers,
     get_all_chats,
+    get_chat,
+    get_chat_messages,
     get_system_stats,
     verify_supplier,
     reject_supplier,
@@ -20,11 +22,13 @@ from database_helpers import (
     create_product,
     delete_product,
     get_product_by_id,
+    get_buyer_by_id,
     get_supplier_by_id,
     attach_product_to_supplier,
     get_verified_suppliers,
     get_out_of_stock_suppliers,
     update_product_stock,
+    end_chat,
     get_pending_sale_proofs,
     get_sale_by_id,
     approve_sale,
@@ -157,6 +161,84 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await query.answer()
 
+async def show_admin_chat_details(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    """Show full chat details for admin, including buyer/seller profiles and product info"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    chat = get_chat(chat_id)
+    if not chat:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    buyer = get_buyer_by_id(chat.buyer_id)
+    supplier = get_supplier_by_id(chat.supplier_id)
+    product = get_product_by_id(chat.product_id) if chat.product_id else None
+    messages = get_chat_messages(chat_id, limit=20)
+
+    buyer_name = " ".join(filter(None, [buyer.first_name if buyer else None, buyer.last_name if buyer else None])) if buyer else "N/A"
+    if not buyer_name:
+        buyer_name = "N/A"
+    supplier_name = supplier.company_name if supplier else "N/A"
+    product_name = product.name if product else "General / Not specified"
+    status = "✅ Active" if chat.active else "❌ Inactive"
+
+    message = f"📊 Chat #{chat.id} Details\n\n"
+    message += f"Status: {status}\n"
+    message += f"Product: {product_name}\n\n"
+    message += f"👤 Buyer: {buyer_name}\n"
+    message += f"   Buyer DB ID: {chat.buyer_id}\n"
+    message += f"   Buyer Telegram ID: {buyer.telegram_id if buyer else 'N/A'}\n"
+    message += f"   Buyer Username: @{buyer.username if buyer and buyer.username else 'N/A'}\n\n"
+    message += f"🏪 Seller: {supplier_name}\n"
+    message += f"   Seller DB ID: {chat.supplier_id}\n"
+    message += f"   Seller Telegram ID: {supplier.telegram_id if supplier else 'N/A'}\n"
+    message += f"   Seller Username: @{supplier.username if supplier and supplier.username else 'N/A'}\n\n"
+    message += "📜 Last Messages:\n"
+    message += "-" * 30 + "\n"
+
+    if not messages:
+        message += "No messages yet.\n"
+    else:
+        for msg in messages:
+            sender = "Buyer" if msg.sender_type == "buyer" else "Seller"
+            text = msg.message or ""
+            if len(text) > 100:
+                text = text[:100] + "..."
+            message += f"\n{sender}: {text}\n"
+
+    buttons = []
+    if chat.active:
+        buttons.append([InlineKeyboardButton("🛑 End Chat", callback_data=f"admin_end_chat_{chat.id}")])
+    buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_view_chats")])
+
+    await query.edit_message_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+async def end_chat_by_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    """Allow admin to end an active chat"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    chat = get_chat(chat_id)
+    if not chat:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    if not chat.active:
+        await query.answer("Chat is already ended.", show_alert=True)
+        await show_admin_chat_details(update, context, chat_id)
+        return
+
+    if not end_chat(chat_id, chat.supplier_id):
+        await query.answer("❌ Failed to end chat.", show_alert=True)
+        return
+
+    await query.answer("✅ Chat ended.", show_alert=True)
+    await show_admin_chat_details(update, context, chat_id)
+
 async def show_suppliers_management(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show suppliers management panel with pending verification requests"""
     language = context.user_data.get('language', 'en')
@@ -223,6 +305,12 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_manage_users(update, context)
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
+    elif action == "chat":
+        chat_id = int(action_parts[2])
+        await show_admin_chat_details(update, context, chat_id)
+    elif action == "end" and action_parts[2] == "chat":
+        chat_id = int(action_parts[3])
+        await end_chat_by_admin(update, context, chat_id)
     elif action == "add" and action_parts[2] == "product":
         if len(action_parts) == 3:
             await show_add_product_form(update, context)
