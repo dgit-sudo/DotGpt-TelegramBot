@@ -229,6 +229,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
             except Exception as e:
                 logger.warning(f"Failed to send supplier chat notification: {e}")
+    elif sender_type == "supplier":
+        buyer_profile = get_buyer_by_id(chat.buyer_id)
+        if buyer_profile and buyer_profile.telegram_id != user_id:
+            try:
+                bot_username = context.bot.username
+                if bot_username:
+                    direct_link = f"https://t.me/{bot_username}?start=openchat_{current_chat_id}"
+                    await context.bot.send_message(
+                        chat_id=buyer_profile.telegram_id,
+                        text="🔔 New seller message received. Tap below to open the chat.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("💬 Open Chat", url=direct_link)]
+                        ])
+                    )
+                else:
+                    await context.bot.send_message(
+                        chat_id=buyer_profile.telegram_id,
+                        text="🔔 New seller message received. Open your chats to reply."
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to send buyer chat notification: {e}")
     
     await update.message.reply_text(get_string("message_sent", language))
 
