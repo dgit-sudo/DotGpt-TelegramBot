@@ -9,6 +9,7 @@ from database_helpers import (
     get_buyer,
     get_buyer_by_id,
     get_supplier,
+    get_supplier_by_id,
     get_support_chat,
     get_support_messages,
     save_support_message,
@@ -181,14 +182,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(get_string("identity_disallowed", language))
         return
     
-    # Determine sender type
+    # Determine sender type based on actual chat membership (or admin intervention)
     buyer = get_buyer(user_id)
     supplier = get_supplier(user_id)
-    
-    if buyer:
-        sender_type = "buyer"
-    elif supplier:
+    admin_user = is_admin(user_id)
+
+    buyer_access = bool(buyer and chat.buyer_id == buyer.id)
+    supplier_access = bool(supplier and chat.supplier_id == supplier.id)
+
+    if supplier_access:
         sender_type = "supplier"
+    elif buyer_access:
+        sender_type = "buyer"
+    elif admin_user:
+        sender_type = "admin"
     else:
         await update.message.reply_text(get_string("unauthorized", language))
         return
@@ -200,6 +207,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender_type=sender_type,
         message=message_text
     )
+
+    if sender_type == "buyer":
+        supplier_profile = get_supplier_by_id(chat.supplier_id)
+        if supplier_profile and supplier_profile.telegram_id != user_id:
+            try:
+                bot_username = context.bot.username
+                if bot_username:
+                    direct_link = f"https://t.me/{bot_username}?start=openchat_{current_chat_id}"
+                    await context.bot.send_message(
+                        chat_id=supplier_profile.telegram_id,
+                        text="🔔 New buyer message received. Tap below to open the chat.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("💬 Open Chat", url=direct_link)]
+                        ])
+                    )
+                else:
+                    await context.bot.send_message(
+                        chat_id=supplier_profile.telegram_id,
+                        text="🔔 New buyer message received. Open your Buyer Inquiries to reply."
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to send supplier chat notification: {e}")
     
     await update.message.reply_text(get_string("message_sent", language))
 
@@ -287,18 +316,18 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     buyer = get_buyer(user_id)
     supplier = get_supplier(user_id)
     
-    if buyer and chat.buyer_id != buyer.id:
-        await query.answer(get_string("unauthorized", language), show_alert=True)
-        return
-    
-    if supplier and chat.supplier_id != supplier.id:
+    admin_user = is_admin(user_id)
+    buyer_access = bool(buyer and chat.buyer_id == buyer.id)
+    supplier_access = bool(supplier and chat.supplier_id == supplier.id)
+
+    if not (admin_user or buyer_access or supplier_access):
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
 
     if not chat.active:
         context.user_data.pop('current_chat', None)
         await query.answer("This chat has ended.", show_alert=True)
-        if buyer:
+        if buyer_access:
             from handlers.buyer_handlers import show_buyer_menu
             await show_buyer_menu(update, context)
         else:
@@ -316,14 +345,18 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     message_text += get_string("buyer_profile_hidden", language) + "\n\n"
     
     # Show language info
-    if buyer:
+    if buyer_access and not supplier_access:
         supplier_lang = chat.supplier.language if chat.supplier else 'en'
         supplier_lang_name = get_language_name(supplier_lang)
         message_text += f"🌐 {get_string('communicating_in', language)}: {supplier_lang_name}\n\n"
-    else:  # supplier
+    elif supplier_access:
         buyer_lang = chat.buyer.language if chat.buyer else 'en'
         buyer_lang_name = get_language_name(buyer_lang)
         message_text += f"🌐 {get_string('communicating_in', language)}: {buyer_lang_name}\n\n"
+    else:
+        buyer_lang = chat.buyer.language if chat.buyer else 'en'
+        supplier_lang = chat.supplier.language if chat.supplier else 'en'
+        message_text += f"🌐 Buyer: {get_language_name(buyer_lang)} | Seller: {get_language_name(supplier_lang)}\n\n"
     
     message_text += "📜 Messages:\n"
     message_text += "-" * 30 + "\n"
@@ -332,12 +365,19 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
         message_text += get_string("no_chats", language)
     else:
         for msg in messages:
-            sender = "You" if msg.sender_id == user_id else f"{'Buyer' if msg.sender_type == 'buyer' else 'Supplier'}"
+            if msg.sender_id == user_id:
+                sender = "You"
+            elif msg.sender_type == 'buyer':
+                sender = "Buyer"
+            elif msg.sender_type == 'supplier':
+                sender = "Supplier"
+            else:
+                sender = "Admin"
             
             # Translate message based on sender and receiver
             display_message = msg.message
             try:
-                if buyer and msg.sender_type == 'supplier':
+                if buyer_access and msg.sender_type == 'supplier':
                     # Buyer reading supplier message - translate from supplier lang to buyer lang
                     supplier_lang = chat.supplier.language if chat.supplier else 'en'
                     supplier_obj = chat.supplier
@@ -349,7 +389,7 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
                             supplier_lang=supplier_lang,
                             sender_type='supplier'
                         )
-                elif supplier and msg.sender_type == 'buyer':
+                elif supplier_access and msg.sender_type == 'buyer':
                     # Supplier reading buyer message - translate from buyer lang to supplier lang
                     buyer_lang = chat.buyer.language if chat.buyer else 'en'
                     supplier_obj = supplier
@@ -372,7 +412,7 @@ async def show_chat_view(update: Update, context: ContextTypes.DEFAULT_TYPE, cha
     buttons = []
     
     # Add sale done button for suppliers
-    if supplier:
+    if supplier_access:
         buttons.append([InlineKeyboardButton(get_string("mark_sale_done", language), callback_data=f"sale_product_select_{chat_id}")])
         buttons.append([InlineKeyboardButton("🛑 End Chat", callback_data=f"chat_end_{chat_id}")])
     

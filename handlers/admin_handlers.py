@@ -436,6 +436,8 @@ async def show_admin_chat_details(update: Update, context: ContextTypes.DEFAULT_
 
     buttons = []
     if chat.active:
+        buttons.append([InlineKeyboardButton("✍️ Reply in this Chat", callback_data=f"admin_chat_reply_{chat.id}")])
+    if chat.active:
         buttons.append([InlineKeyboardButton("🛑 End Chat", callback_data=f"admin_end_chat_{chat.id}")])
     buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="admin_view_chats")])
 
@@ -465,6 +467,38 @@ async def end_chat_by_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     await query.answer("✅ Chat ended.", show_alert=True)
     await show_admin_chat_details(update, context, chat_id)
+
+
+async def enable_admin_chat_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    """Enable admin text reply mode for a specific buyer-seller chat"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    chat = get_chat(chat_id)
+    if not chat:
+        await query.answer(get_string("not_found", language), show_alert=True)
+        return
+
+    if not chat.active:
+        await query.answer("This chat is ended and cannot be replied to.", show_alert=True)
+        await show_admin_chat_details(update, context, chat_id)
+        return
+
+    context.user_data['current_chat'] = chat_id
+    context.user_data['current_chat_type'] = 'supplier'
+    context.user_data.pop('current_support_chat', None)
+
+    await query.edit_message_text(
+        text=(
+            f"✍️ Admin reply mode enabled for Chat #{chat_id}.\n\n"
+            "Send any text message now and it will be saved in this chat as Admin."
+        ),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💬 Open Chat View", callback_data=f"chat_open_{chat_id}")],
+            [InlineKeyboardButton(get_string("back", language), callback_data=f"admin_chat_{chat_id}")],
+        ])
+    )
+    await query.answer("Admin reply mode enabled.", show_alert=True)
 
 async def show_suppliers_management(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show suppliers management panel with pending verification requests"""
@@ -546,6 +580,9 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_manage_users(update, context)
     elif action == "manage" and action_parts[2] == "products":
         await show_manage_products(update, context)
+    elif action == "chat" and len(action_parts) > 2 and action_parts[2] == "reply":
+        chat_id = int(action_parts[3])
+        await enable_admin_chat_reply(update, context, chat_id)
     elif action == "chat":
         chat_id = int(action_parts[2])
         await show_admin_chat_details(update, context, chat_id)

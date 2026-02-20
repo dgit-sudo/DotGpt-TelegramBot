@@ -7,6 +7,8 @@ from database_helpers import (
     get_buyer,
     get_chat,
     is_superadmin,
+    is_admin,
+    get_supplier,
     get_or_create_referral_profile,
     register_referral_join,
 )
@@ -20,6 +22,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     superadmin_user = is_superadmin(user.id)
 
     referrer_id = None
+    open_chat_id = None
     if context.args:
         start_arg = context.args[0].strip()
         if start_arg.startswith("ref_"):
@@ -27,9 +30,30 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 referrer_id = int(start_arg.split("_", 1)[1])
             except (ValueError, IndexError):
                 referrer_id = None
+        elif start_arg.startswith("openchat_"):
+            try:
+                open_chat_id = int(start_arg.split("_", 1)[1])
+            except (ValueError, IndexError):
+                open_chat_id = None
 
     referral_counted = register_referral_join(user.id, referrer_id)
     referral_profile = get_or_create_referral_profile(user.id)
+
+    if open_chat_id:
+        chat = get_chat(open_chat_id)
+        supplier = get_supplier(user.id)
+        admin_user = is_admin(user.id)
+        supplier_access = bool(supplier and chat and chat.supplier_id == supplier.id)
+        if chat and (supplier_access or admin_user):
+            context.user_data['current_chat'] = open_chat_id
+            context.user_data['current_chat_type'] = 'supplier'
+            await update.message.reply_text(
+                "🔔 Direct chat link opened. Tap below to open the chat.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💬 Open Chat", callback_data=f"chat_open_{open_chat_id}")]
+                ])
+            )
+            return
 
     buyer = get_buyer(user.id)
     current_chat_id = context.user_data.get('current_chat')
