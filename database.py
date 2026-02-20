@@ -307,6 +307,21 @@ class DeletedMessage(Base):
         return f"<DeletedMessage(chat={self.chat_id}, deleted_at={self.deleted_at})>"
 
 
+class UserReferral(Base):
+    """Referral profile for any bot user"""
+    __tablename__ = "user_referrals"
+
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(Integer, unique=True, nullable=False, index=True)
+    referral_code = Column(String(64), unique=True, nullable=False, index=True)
+    referred_by_telegram_id = Column(Integer, nullable=True, index=True)
+    referrals_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserReferral(telegram_id={self.telegram_id}, referrals={self.referrals_count})>"
+
+
 def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)

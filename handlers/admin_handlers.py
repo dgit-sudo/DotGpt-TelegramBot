@@ -11,6 +11,7 @@ from database_helpers import (
     get_system_stats,
     get_system_stats_usernames,
     get_sales_leaderboard,
+    get_referral_leaderboard,
     search_user_by_telegram_id,
     verify_supplier,
     reject_supplier,
@@ -185,6 +186,7 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     buttons = [
         [InlineKeyboardButton("🏆 Sales Leaderboard", callback_data="admin_stats_leaderboard")],
+        [InlineKeyboardButton("🎯 Referral Leaderboard", callback_data="admin_stats_referrals")],
         [InlineKeyboardButton("🔎 Search User (Ban/Unban)", callback_data="admin_stats_search")],
         [InlineKeyboardButton(get_string("back", language), callback_data="admin_menu")]
     ]
@@ -228,6 +230,30 @@ async def show_sales_leaderboard(update: Update, context: ContextTypes.DEFAULT_T
             buyer_name = " ".join(filter(None, [buyer.first_name, buyer.last_name])) or "Unknown"
             buyer_username = f"@{buyer.username}" if buyer.username else "No username"
             message += f"{index}. {buyer_name} ({buyer_username}) - {sales_count}\n"
+
+    buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="admin_stats")]]
+    await query.edit_message_text(
+        text=message,
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+    await query.answer()
+
+async def show_referral_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show referral leaderboard with user type and referral counts"""
+    language = context.user_data.get('language', 'en')
+    query = update.callback_query
+
+    rows = get_referral_leaderboard(limit=20)
+    message = "🎯 Referral Leaderboard (Join-based)\n\n"
+
+    if not rows:
+        message += "• No referrals yet\n"
+    else:
+        for index, row in enumerate(rows, 1):
+            username = f"@{row['username']}" if row.get('username') else f"ID:{row['telegram_id']}"
+            user_type = row.get('user_type', 'user')
+            count = row.get('referrals_count', 0)
+            message += f"{index}. {username} | Type: {user_type} | Referrals: {count}\n"
 
     buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="admin_stats")]]
     await query.edit_message_text(
@@ -503,6 +529,8 @@ async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
             await show_system_stats(update, context)
         elif action_parts[2] == "leaderboard":
             await show_sales_leaderboard(update, context)
+        elif action_parts[2] == "referrals":
+            await show_referral_leaderboard(update, context)
         elif action_parts[2] == "search":
             await prompt_user_search_for_moderation(update, context)
         elif action_parts[2] == "toggle":

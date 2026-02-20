@@ -3,7 +3,13 @@ from telegram.ext import ContextTypes
 from strings import STRINGS
 from translation_utils import get_all_languages, get_language_name
 from config import SUPPORTED_LANGUAGES
-from database_helpers import get_buyer, get_chat, is_superadmin
+from database_helpers import (
+    get_buyer,
+    get_chat,
+    is_superadmin,
+    get_or_create_referral_profile,
+    register_referral_join,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,6 +18,18 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start command handler - Show language selection with all world languages"""
     user = update.effective_user
     superadmin_user = is_superadmin(user.id)
+
+    referrer_id = None
+    if context.args:
+        start_arg = context.args[0].strip()
+        if start_arg.startswith("ref_"):
+            try:
+                referrer_id = int(start_arg.split("_", 1)[1])
+            except (ValueError, IndexError):
+                referrer_id = None
+
+    referral_counted = register_referral_join(user.id, referrer_id)
+    referral_profile = get_or_create_referral_profile(user.id)
 
     buyer = get_buyer(user.id)
     current_chat_id = context.user_data.get('current_chat')
@@ -31,6 +49,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Get user's language (default to English)
     language = context.user_data.get('language', 'en')
+
+    bot_username = context.bot.username
+    if bot_username:
+        referral_link = f"https://t.me/{bot_username}?start={referral_profile.referral_code}"
+        referral_message = f"🔗 Your referral link:\n{referral_link}"
+        if referral_counted:
+            referral_message += "\n\n✅ Referral counted on your join."
+        await update.message.reply_text(referral_message)
     
     await show_language_selection(update, context, page=0)
 

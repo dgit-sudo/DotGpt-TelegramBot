@@ -1,8 +1,12 @@
-from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage, PaymentDetails, Sale, SaleProof, DeletedMessage
+from database import SessionLocal, Product, Supplier, Buyer, Chat, ChatMessage, ProductPrice, SupplierPaymentMethod, AdminUser, SupportChat, SupportMessage, PaymentDetails, Sale, SaleProof, DeletedMessage, UserReferral
 from typing import List, Optional
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime
+
+
+def _referral_code_for_user(telegram_id: int) -> str:
+    return f"ref_{telegram_id}"
 
 def get_or_create_buyer(telegram_id: int, username: str = None, first_name: str = None, last_name: str = None, language: str = "en") -> Buyer:
     """Get or create buyer with language preference"""
@@ -91,6 +95,120 @@ def get_buyer_by_id(buyer_id: int) -> Optional[Buyer]:
     buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
     db.close()
     return buyer
+
+
+def get_or_create_referral_profile(telegram_id: int) -> UserReferral:
+    """Ensure every user has a referral profile/code"""
+    db = SessionLocal()
+    profile = db.query(UserReferral).filter(UserReferral.telegram_id == telegram_id).first()
+
+    if not profile:
+        profile = UserReferral(
+            telegram_id=telegram_id,
+            referral_code=_referral_code_for_user(telegram_id),
+            referred_by_telegram_id=None,
+            referrals_count=0,
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    db.close()
+    return profile
+
+
+def register_referral_join(joined_telegram_id: int, referrer_telegram_id: Optional[int]) -> bool:
+    """Count referral only on first join (/start first-time profile creation)."""
+    if not referrer_telegram_id or joined_telegram_id == referrer_telegram_id:
+        get_or_create_referral_profile(joined_telegram_id)
+        return False
+
+    db = SessionLocal()
+
+    joined_profile = db.query(UserReferral).filter(UserReferral.telegram_id == joined_telegram_id).first()
+    if joined_profile:
+        db.close()
+        return False
+
+    referrer_profile = db.query(UserReferral).filter(UserReferral.telegram_id == referrer_telegram_id).first()
+    if not referrer_profile:
+        existing_referrer = (
+            db.query(Buyer).filter(Buyer.telegram_id == referrer_telegram_id).first()
+            or db.query(Supplier).filter(Supplier.telegram_id == referrer_telegram_id).first()
+            or db.query(AdminUser).filter(AdminUser.telegram_id == referrer_telegram_id).first()
+        )
+        if not existing_referrer:
+            db.close()
+            get_or_create_referral_profile(joined_telegram_id)
+            return False
+
+        referrer_profile = UserReferral(
+            telegram_id=referrer_telegram_id,
+            referral_code=_referral_code_for_user(referrer_telegram_id),
+            referred_by_telegram_id=None,
+            referrals_count=0,
+        )
+        db.add(referrer_profile)
+        db.flush()
+
+    joined_profile = UserReferral(
+        telegram_id=joined_telegram_id,
+        referral_code=_referral_code_for_user(joined_telegram_id),
+        referred_by_telegram_id=referrer_telegram_id,
+        referrals_count=0,
+    )
+    db.add(joined_profile)
+    referrer_profile.referrals_count += 1
+
+    db.commit()
+    db.close()
+    return True
+
+
+def get_referral_leaderboard(limit: int = 20) -> List[dict]:
+    """Referral leaderboard with inferred user type"""
+    db = SessionLocal()
+    rows = db.query(UserReferral).order_by(UserReferral.referrals_count.desc(), UserReferral.telegram_id.asc()).limit(limit).all()
+
+    leaderboard = []
+    for row in rows:
+        admin = db.query(AdminUser).filter(
+            and_(AdminUser.telegram_id == row.telegram_id, AdminUser.is_active == True)
+        ).first()
+        supplier = db.query(Supplier).filter(Supplier.telegram_id == row.telegram_id).first()
+        buyer = db.query(Buyer).filter(Buyer.telegram_id == row.telegram_id).first()
+
+        if admin and admin.is_superadmin:
+            user_type = "superadmin"
+        elif admin:
+            user_type = "admin"
+        elif supplier and supplier.status == "verified":
+            user_type = "seller"
+        elif supplier:
+            user_type = "supplier"
+        elif buyer:
+            user_type = "buyer"
+        else:
+            user_type = "user"
+
+        username = None
+        if admin and admin.username:
+            username = admin.username
+        elif supplier and supplier.username:
+            username = supplier.username
+        elif buyer and buyer.username:
+            username = buyer.username
+
+        leaderboard.append({
+            "telegram_id": row.telegram_id,
+            "username": username,
+            "user_type": user_type,
+            "referrals_count": row.referrals_count,
+            "referral_code": row.referral_code,
+        })
+
+    db.close()
+    return leaderboard
 
 def get_products_by_supplier(supplier_id: int) -> List[Product]:
     """Get all products for a supplier"""
