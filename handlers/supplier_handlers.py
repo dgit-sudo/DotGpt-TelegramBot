@@ -7,6 +7,7 @@ from database_helpers import (
     get_supplier,
     get_supplier_chats,
     get_products_by_supplier,
+    get_product_by_id,
 )
 from handlers.language_selection import ensure_terms_accepted
 from config import ADMIN_IDS
@@ -459,43 +460,47 @@ Low Stock Products:
     await show_supplier_statistics(update, context)
 
 
+async def show_supplier_inquiries(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show buyer inquiries for supplier"""
     user_id = update.effective_user.id
     language = context.user_data.get('language', 'en')
     query = update.callback_query
-    
+
     supplier = get_supplier(user_id)
     if not supplier:
         await query.answer(get_string("unauthorized", language), show_alert=True)
         return
-    
+
     chats = get_supplier_chats(supplier.id)
-    
+
     message = f"📬 {get_string('buyer_inquiries', language)}\n\n"
     message += get_string("buyer_profile_hidden", language) + "\n\n"
-    
+
     if not chats:
         message += get_string("no_chats", language)
         buttons = [[InlineKeyboardButton(get_string("back", language), callback_data="supplier_dashboard")]]
     else:
         buttons = []
         for chat in chats:
-            message += f"💬 Chat #{chat.id} - "
-            message += f"Product: {chat.product.name if chat.product else 'General'}\n"
-            
+            product = get_product_by_id(chat.product_id) if chat.product_id else None
+            product_name = product.name if product else "General"
+            message += f"💬 Chat #{chat.id} - Product: {product_name}\n"
+
             buttons.append([
                 InlineKeyboardButton(f"💬 Chat #{chat.id}", callback_data=f"chat_open_{chat.id}")
             ])
-        
+
         buttons.append([InlineKeyboardButton(get_string("back", language), callback_data="supplier_dashboard")])
-    
+
     reply_markup = InlineKeyboardMarkup(buttons)
-    
+
     await query.edit_message_text(
         text=message,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+    await query.answer()
+
 
 async def handle_supplier_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle supplier-related actions"""
