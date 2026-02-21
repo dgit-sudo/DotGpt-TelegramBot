@@ -195,8 +195,7 @@ async def show_system_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         text=message,
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
+        reply_markup=reply_markup
     )
     await query.answer()
 
