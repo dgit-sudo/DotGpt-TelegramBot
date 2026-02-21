@@ -97,13 +97,18 @@ class DotGPTBot:
         ))
         
         self.app.add_handler(CallbackQueryHandler(
-            supplier_handlers.handle_supplier_action,
-            pattern=r"^supplier_"
-        ))
-        
-        self.app.add_handler(CallbackQueryHandler(
             supplier_handlers.handle_supplier_language_selection,
             pattern=r"^supplier_lang_"
+        ))
+
+        self.app.add_handler(CallbackQueryHandler(
+            supplier_handlers.handle_supplier_action,
+            pattern=r"^(toggle_auto_translate|send_restock_alert)$"
+        ))
+
+        self.app.add_handler(CallbackQueryHandler(
+            supplier_handlers.handle_supplier_action,
+            pattern=r"^supplier_"
         ))
         
         self.app.add_handler(CallbackQueryHandler(

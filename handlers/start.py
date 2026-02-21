@@ -63,6 +63,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("💬 You already have an active chat. Wait for the seller to end it.")
             return
         context.user_data.pop('current_chat', None)
+
+    if buyer and buyer.language:
+        context.user_data['language'] = buyer.language
+        context.user_data['is_superadmin'] = is_superadmin(user.id)
+        context.user_data['is_admin'] = is_admin(user.id)
+
+        from handlers.language_selection import show_main_menu
+        await show_main_menu(update, context, buyer.language)
+        return
     
     # Store user info in context
     context.user_data['user_id'] = user.id
@@ -73,7 +82,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Get user's language (default to English)
     language = context.user_data.get('language', 'en')
-
     bot_username = context.bot.username
     if bot_username:
         referral_link = f"https://t.me/{bot_username}?start={referral_profile.referral_code}"
